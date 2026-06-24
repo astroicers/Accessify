@@ -3,3 +3,4 @@ export const PACKAGE = '@accessify/api' as const;
 
 export * from './auth.js';
 export * from './bootstrap.js';
+export * from './server.js';
