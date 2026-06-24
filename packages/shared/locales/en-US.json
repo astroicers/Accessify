@@ -6,7 +6,10 @@
   "common": {
     "loading": "Loading…",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "toggleTheme": "Toggle theme",
+    "skipToContent": "Skip to content",
+    "language": "Language"
   },
   "severity": {
     "critical": "Critical",

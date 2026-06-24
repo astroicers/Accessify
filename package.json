@@ -11,7 +11,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && npm run build --workspace @accessify/web",
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",

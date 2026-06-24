@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### Added
+- **M5/T501**：前端 scaffold（ADR-005 / visual-web-stack 基礎層）`@accessify/web`：React 19 + Vite 6 + Tailwind v4 + react-i18next（共用 shared catalog，zh-TW/en-US，持久化偏好不被 Accept-Language 凌駕）+ next-themes + zustand；Layout（skip-link、語言/主題切換、可見 focus）、typed API client、reduced-motion 全域兜底。`vite build` production 綠（58 modules）、`tsc --noEmit` 綠。移除 3D/滾動層（自身 a11y/穩定）。
 - **M5/T502**：REST API（ADR-001 / FR-206）`@accessify/api` Fastify server：`/healthz`、`/api/openapi.json`（OpenAPI 契約）、auth login/logout（session cookie + Bearer）、scans 列表/建立(白名單+入列)/詳情/issues/reports、settings；session 中介層 + RBAC 守衛（admin/viewer）+ route schema 驗證 + 稽核。以 `fastify.inject` 測試（401/403/201/白名單）。
 - **M5/T503**：本地帳號 + RBAC + session + 登入鎖定（ADR-006 / FR-101~104）`@accessify/api`：bcryptjs（cost 12）hash/verify、`createUser`、`authenticate`（失敗累計鎖定）、server-side session（token 雜湊）、`hasRole`（admin 可 view）。core 遷移 0002 新增 sessions 表 + 鎖定/強制改密欄位（expand-contract）。
 - **M5/T506**：首位 admin 離線 bootstrap（ADR-006）`ensureAdmin`：無 admin 時建立；未提供密碼則產生一次性隨機密碼並強制首登改密；嚴禁固定預設。

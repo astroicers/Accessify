@@ -6,7 +6,10 @@
   "common": {
     "loading": "載入中…",
     "save": "儲存",
-    "cancel": "取消"
+    "cancel": "取消",
+    "toggleTheme": "切換深淺色",
+    "skipToContent": "跳至主要內容",
+    "language": "語言"
   },
   "severity": {
     "critical": "嚴重",

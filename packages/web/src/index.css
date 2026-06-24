@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+
+/* reduced-motion 全域兜底（ADR-005 / UIUX_SPEC §6）：尊重使用者系統偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root {
+  color-scheme: light dark;
+}
+body {
+  margin: 0;
+  font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif;
+}
+
+/* 可見的鍵盤焦點（UIUX_SPEC §5.3，禁 outline:none） */
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

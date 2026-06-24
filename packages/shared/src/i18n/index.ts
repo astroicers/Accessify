@@ -11,6 +11,9 @@ const resources = {
   'en-US': { translation: enUS },
 } as const;
 
+/** 原始 catalog 資源，供前端 react-i18next 初始化共用同一份 catalog（ADR-004）。 */
+export const localeResources = resources;
+
 /** 建立一個獨立的 i18next 實例（避免跨請求/跨元件共用可變狀態）。 */
 export function createI18n(lng: Locale = DEFAULT_LOCALE): I18nInstance {
   const instance = i18next.createInstance();
