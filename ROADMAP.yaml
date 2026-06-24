@@ -344,7 +344,7 @@ milestones:
   - id: M3
     title: "雙語報表引擎"
     target_date: 2026-08-05
-    status: pending
+    status: completed
     tasks:
       - id: T301
         title: "報表資料模型 + i18n HTML 樣板（zh-TW/en-US）"
@@ -354,7 +354,7 @@ milestones:
         spec: null
         srs_ref: FR-401
         depends_on: [T202, T203, T002]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -372,7 +372,7 @@ milestones:
         spec: null
         srs_ref: FR-402
         depends_on: [T301]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -390,7 +390,7 @@ milestones:
         spec: null
         srs_ref: FR-403
         depends_on: [T301]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""

@@ -7,5 +7,31 @@
     "loading": "Loading…",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "severity": {
+    "critical": "Critical",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "hint": "Hint"
+  },
+  "report": {
+    "title": "Accessibility Report",
+    "target": "Target Site",
+    "generatedAt": "Generated At",
+    "siteScore": "Site Score",
+    "totalIssues": "Total Issues",
+    "coverageTitle": "Coverage (Honestly Stated)",
+    "autoCovered": "Auto-covered",
+    "autoOrPartial": "Auto or Partial",
+    "wcagCriterion": "WCAG Criterion",
+    "level": "Level",
+    "severity": "Severity",
+    "ruleId": "Rule",
+    "selector": "Selector",
+    "message": "Message",
+    "engine": "Engine",
+    "pageUrl": "Page",
+    "noIssues": "No automatically detectable issues found"
   }
 }

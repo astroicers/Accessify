@@ -5,6 +5,12 @@
 ## [Unreleased]
 
 ### Added
+- **M3 雙語報表引擎（T301–T303，完成）** `@accessify/report`：i18n 報表資料模型 + chrome 走 shared i18next（zh-TW/en-US）。
+  - T301 HTML（FR-401）：`renderHtmlReport()`，含涵蓋率誠實標示；不可信內容一律 HTML 轉義（防 XSS）。
+  - T302 PDF（FR-402）：`htmlToPdf()`（Playwright print，CJK 完整字型由映像提供）。
+  - T303 Excel（FR-403）：`renderExcel()`（ExcelJS，summary + 問題清單 + 可追蹤 Status 欄）。
+  - 實證：fixture 報表 → HTML 1.8KB（含「嚴重」「27%」）、XLSX 7.7KB（2 sheets）、PDF 167KB（%PDF）。
+- 修正：shared i18n JSON 匯入加 `with { type: 'json' }`（Node ESM 執行期必需）；vitest 加 workspace src alias。
 - **M2 WCAG 對應引擎（T201–T203，完成）** `@accessify/mapping`：
   - T201 規則碼→WCAG（FR-301）：`WCAG_CRITERIA` 33 條 A・AA 準則參考表（等級/涵蓋類別/雙語名稱）、`toSuccessCriterion()`、`resolveCriterion()`、`mapTagsToCriteria()`。
   - T202 嚴重度+分數（FR-302）：`severityOf()`（impact 優先，HTMLCS 無 impact 依等級推估 A→高/AA→中）、`scoreSite()`（0–100 加權扣分，確定性）。

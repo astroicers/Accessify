@@ -7,5 +7,31 @@
     "loading": "載入中…",
     "save": "儲存",
     "cancel": "取消"
+  },
+  "severity": {
+    "critical": "嚴重",
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+    "hint": "提示"
+  },
+  "report": {
+    "title": "無障礙檢測報告",
+    "target": "檢測站台",
+    "generatedAt": "產生時間",
+    "siteScore": "站台分數",
+    "totalIssues": "問題總數",
+    "coverageTitle": "涵蓋率（誠實標示）",
+    "autoCovered": "自動涵蓋",
+    "autoOrPartial": "自動或部分",
+    "wcagCriterion": "WCAG 準則",
+    "level": "等級",
+    "severity": "嚴重度",
+    "ruleId": "規則",
+    "selector": "元素選擇器",
+    "message": "說明",
+    "engine": "來源引擎",
+    "pageUrl": "頁面",
+    "noIssues": "未發現自動可判定的問題"
   }
 }

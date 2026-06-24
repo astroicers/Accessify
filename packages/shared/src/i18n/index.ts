@@ -2,8 +2,8 @@
 // 僅 zh-TW（預設）與 en-US（fallback）；前端 / 後端 / 報表共用同一 catalog。
 
 import i18next, { type i18n as I18nInstance } from 'i18next';
-import zhTW from '../../locales/zh-TW.json';
-import enUS from '../../locales/en-US.json';
+import zhTW from '../../locales/zh-TW.json' with { type: 'json' };
+import enUS from '../../locales/en-US.json' with { type: 'json' };
 import { DEFAULT_LOCALE, FALLBACK_LOCALE, SUPPORTED_LOCALES, type Locale } from '../index.js';
 
 const resources = {

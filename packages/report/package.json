@@ -8,5 +8,10 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -b"
+  },
+  "dependencies": {
+    "@accessify/shared": "0.1.0",
+    "exceljs": "^4.4.0",
+    "playwright": "^1.49.1"
   }
 }
