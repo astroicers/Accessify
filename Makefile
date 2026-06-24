@@ -19,8 +19,8 @@ install: ## 安裝相依（離線：npm ci --offline）
 build: ## 建置
 	npm run build
 
-test: ## 執行測試
-	npm test
+test: ## 執行測試（通過時寫入 ASP ship 痕跡 .asp-test-result.json）
+	npm test && printf '{"passed":true,"ts":"%s"}\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" > .asp-test-result.json
 
 test-filter: ## 執行過濾測試：make test-filter FILTER=spec-001
 	npm test -- $(FILTER)

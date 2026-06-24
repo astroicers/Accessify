@@ -1,0 +1,12 @@
+{
+  "name": "@accessify/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "React + Vite 本地 Web Portal",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

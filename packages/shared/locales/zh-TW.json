@@ -1,0 +1,11 @@
+{
+  "app": {
+    "name": "Accessify",
+    "tagline": "無障礙網頁檢測"
+  },
+  "common": {
+    "loading": "載入中…",
+    "save": "儲存",
+    "cancel": "取消"
+  }
+}

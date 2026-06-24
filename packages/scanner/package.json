@@ -1,0 +1,12 @@
+{
+  "name": "@accessify/scanner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright 渲染 + axe-core/pa11y 注入與整併",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

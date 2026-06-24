@@ -1,0 +1,15 @@
+{
+  "name": "@accessify/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "共用型別、i18n catalog、工具",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "i18next": "^24.2.0"
+  }
+}

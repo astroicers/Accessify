@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/core" },
+    { "path": "packages/scanner" },
+    { "path": "packages/mapping" },
+    { "path": "packages/report" },
+    { "path": "packages/api" },
+    { "path": "packages/web" }
+  ]
+}

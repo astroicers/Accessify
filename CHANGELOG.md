@@ -5,6 +5,11 @@
 ## [Unreleased]
 
 ### Added
+- **M0/T004**：base Docker 映像（ADR-002/009）— `Dockerfile`（node:22、內建 Noto CJK 字型、tini PID1 reaping、非 root、Chromium OS 函式庫、TZ=Asia/Taipei、`npm ci` lockfile pin）、`.dockerignore`、`scripts/build-image.sh`、`scripts/vendor-offline.sh`；結構測試守住 air-gap 規則；`docker build --check` 無警告（實際 image build 屬 CI/現場步驟）。
+- **M0/T005**：CI 品質門檻 + 基準站台 fixtures — `.github/workflows/ci.yml`（lint/build/test）；`test/fixtures/{with-violations,clean}.html` golden 站台供 M1/M2 掃描回歸。
+- **M0/T003**：SQLite schema + 版本化遷移 + 內嵌佇列（ADR-003）— `@accessify/core` `openDb()`（WAL / foreign_keys / busy_timeout 5000ms）、`runMigrations()`（schema_version、單一交易、冪等、expand-contract）；schema 含 users/scan_tasks/jobs/pages/issues/reports/audit_logs/settings；`jobs` 含 state + lease/heartbeat 欄位（跨程序並發續接）。
+- **M0/T002**：i18n 基礎框架 — i18next + zh-TW/en-US catalog（`packages/shared/locales/`）、`createI18n()`、`resolveLocale()`（優先序：持久化 > ?lang > 預設 zh-TW，Accept-Language 不凌駕，ADR-004）、`isLocale()` 型別守衛；`eslint-plugin-i18next` no-literal-string（web/api 層 warn，T006 收緊為 error + CI key-diff）。
+- **M0/T001**：monorepo 骨架與工具鏈 — npm workspaces（7 packages：shared/core/scanner/mapping/report/api/web）+ TypeScript（composite project references）+ ESLint 9 flat + Prettier + Vitest；版本以 `package-lock.json` pin。`@accessify/shared` 提供語系常數（zh-TW/en-US，ADR-004）與 TDD 煙霧測試；`make test` 通過時寫入 ASP ship 痕跡。
 - ASP 治理骨架：`.ai_profile`（autonomous + autopilot）、`CLAUDE.md`（場域鐵則）、`.claude/settings.json`、`.gitignore`。
 - 前置文件：`docs/SRS.md`、`docs/SDS.md`、`docs/UIUX_SPEC.md`、`docs/DEPLOY_SPEC.md`。
 - 架構決策記錄 ADR-001~007（狀態 Draft，待人類核准）。

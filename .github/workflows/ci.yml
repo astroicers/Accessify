@@ -1,0 +1,25 @@
+# Accessify CI — 品質門檻（lint / typecheck / test / build）。
+# 於建置（有網）環境執行；air-gap 場域不依賴此 CI（ADR-002）。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck + build
+        run: npm run build
+      - name: Test
+        run: npm test

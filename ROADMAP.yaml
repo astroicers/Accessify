@@ -80,7 +80,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: []
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -99,7 +99,7 @@ milestones:
         spec: null
         srs_ref: FR-401
         depends_on: [T001]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -118,7 +118,7 @@ milestones:
         spec: null
         srs_ref: FR-206
         depends_on: [T001]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -136,7 +136,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T001]
-        status: pending
+        status: completed
         estimated_complexity: high
         source_type: manual
         source_ref: ""
@@ -157,7 +157,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T001]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""

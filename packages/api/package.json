@@ -1,0 +1,12 @@
+{
+  "name": "@accessify/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "REST API、認證/RBAC、稽核、入列",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b"
+  }
+}
