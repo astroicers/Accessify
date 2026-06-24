@@ -5,6 +5,10 @@
 ## [Unreleased]
 
 ### Added
+- **M2 WCAG 對應引擎（T201–T203，完成）** `@accessify/mapping`：
+  - T201 規則碼→WCAG（FR-301）：`WCAG_CRITERIA` 33 條 A・AA 準則參考表（等級/涵蓋類別/雙語名稱）、`toSuccessCriterion()`、`resolveCriterion()`、`mapTagsToCriteria()`。
+  - T202 嚴重度+分數（FR-302）：`severityOf()`（impact 優先，HTMLCS 無 impact 依等級推估 A→高/AA→中）、`scoreSite()`（0–100 加權扣分，確定性）。
+  - T203 誠實涵蓋率（FR-303）：`coverageSummary()`（自動 27% / 自動+部分 79%，刻意 <100%）、`COVERAGE_NOTE`（雙語誠實聲明，不宣稱完整合規）。
 - **M1/T104**：URL/sitemap 探索 + 逐頁掃描編排 + 入庫（FR-204）— `@accessify/scanner` `parseSitemap()`/`buildTargets()`、`scanUrl()`（egress 強制渲染 + 雙引擎 + 整併）、`scanSite()`（頁數上限、單頁失敗隔離、結構化輸出）；`@accessify/core` `persistScan()`（寫入 pages/issues）。**M1 掃描核心完成（T101–T104）**。端到端驗證：fixture → render → axe+htmlcs → 8 deduped → SQLite 1 page / 8 issues。
 - **M1/T103**：第二引擎 HTML CodeSniffer + 整併去重（ADR-007 / FR-203）— `runHtmlcs(page)`（HTMLCS BSD-3-Clause 未修改注入 build/HTMLCS.js、WCAG2AA、取 Error）、`normalizeHtmlcs()`；`mergeFindings()` 依 WCAG SC + selector 跨引擎去重並記錄 engines；`toSuccessCriterion()` 正規化 axe/HTMLCS WCAG 形式。真實驗證：golden fixture axe 4 + htmlcs 5 → 8 deduped，html-has-lang 由兩引擎共同回報並正確合併。
 - **M1/T102**：axe-core 注入 → raw findings（ADR-007 / FR-202）— `@accessify/scanner` `runAxe(page)`（axe-core MPL-2.0 未修改注入、withTags wcag2a/2aa/21a/21aa）、`normalizeAxe()`（攤平 violations×nodes，取 ruleId/impact/wcagTags/selector/message/helpUrl）。真實驗證：golden fixture 掃出 4 筆 WCAG findings（button-name/html-has-lang/image-alt/label），clean fixture 0 筆。
