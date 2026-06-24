@@ -5,6 +5,8 @@
 ## [Unreleased]
 
 ### Added
+- **M0/T006**：i18n key-diff CI 閘（ADR-004）— `key-diff.test.ts`（zh-TW/en-US key 集合完全一致，CI 強制）；`no-literal-string` 收緊為 **error**（web/api 層）。
+- **M0/T007**：a11y/e2e 測試框架（ADR-005）— `@playwright/test` + `@axe-core/playwright`、`playwright.config.ts`（locale zh-TW、TZ Asia/Taipei）、`e2e/a11y.spec.ts`（WCAG 2.1 AA 驗收骨架，M5 啟用）、`make e2e`。**M0 完成（T001–T007）**。
 - **M0/T004**：base Docker 映像（ADR-002/009）— `Dockerfile`（node:22、內建 Noto CJK 字型、tini PID1 reaping、非 root、Chromium OS 函式庫、TZ=Asia/Taipei、`npm ci` lockfile pin）、`.dockerignore`、`scripts/build-image.sh`、`scripts/vendor-offline.sh`；結構測試守住 air-gap 規則；`docker build --check` 無警告（實際 image build 屬 CI/現場步驟）。
 - **M0/T005**：CI 品質門檻 + 基準站台 fixtures — `.github/workflows/ci.yml`（lint/build/test）；`test/fixtures/{with-violations,clean}.html` golden 站台供 M1/M2 掃描回歸。
 - **M0/T003**：SQLite schema + 版本化遷移 + 內嵌佇列（ADR-003）— `@accessify/core` `openDb()`（WAL / foreign_keys / busy_timeout 5000ms）、`runMigrations()`（schema_version、單一交易、冪等、expand-contract）；schema 含 users/scan_tasks/jobs/pages/issues/reports/audit_logs/settings；`jobs` 含 state + lease/heartbeat 欄位（跨程序並發續接）。

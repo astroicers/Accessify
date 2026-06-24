@@ -3,7 +3,7 @@
 # ASP 治理指令委派至 ~/.claude/asp/。完整 ASP skills 見 ~/.claude/skills/asp/。
 
 .DEFAULT_GOAL := help
-.PHONY: help install build test test-filter lint coverage dev \
+.PHONY: help install build test test-filter lint coverage dev e2e \
         profile-validate asp-compile asp-audit autopilot-validate
 
 ASP_SCRIPTS := $(HOME)/.claude/asp/scripts
@@ -33,6 +33,9 @@ coverage: ## 測試覆蓋率
 
 dev: ## 本地開發
 	npm run dev
+
+e2e: ## a11y/e2e 測試（Playwright + axe；需先 npx playwright install chromium；M5 起有頁面可測）
+	npx playwright test
 
 # ── ASP 治理（已可用）──
 profile-validate: ## 驗證 .ai_profile

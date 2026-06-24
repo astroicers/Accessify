@@ -21,7 +21,7 @@ export default tseslint.config(
     files: ['packages/web/src/**/*.{ts,tsx}', 'packages/api/src/**/*.ts'],
     plugins: { i18next },
     rules: {
-      'i18next/no-literal-string': ['warn', { ignore: ['^@accessify/'] }],
+      'i18next/no-literal-string': ['error', { ignore: ['^@accessify/'] }],
     },
   },
 );

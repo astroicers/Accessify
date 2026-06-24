@@ -70,7 +70,7 @@ milestones:
   - id: M0
     title: "專案基線與離線基礎建設"
     target_date: 2026-07-08
-    status: pending
+    status: completed
     tasks:
       - id: T001
         title: "Monorepo 骨架與工具鏈（npm workspaces、TS、lint、test、版本 pin）"
@@ -175,7 +175,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T002, T005]
-        status: pending
+        status: completed
         estimated_complexity: low
         source_type: manual
         source_ref: ""
@@ -193,7 +193,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T005]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
