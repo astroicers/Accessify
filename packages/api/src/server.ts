@@ -1,6 +1,8 @@
 // @accessify/api/server — REST API（T502 / FR-206 / ADR-001）
 // Fastify + session 中介層 + RBAC 守衛 + route schema（即契約）+ OpenAPI。DI 以利 inject 測試。
 
+import { readFileSync } from 'node:fs';
+import { basename } from 'node:path';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import swagger from '@fastify/swagger';
@@ -167,6 +169,32 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   app.get('/api/scans/:id/reports', { preHandler: requireAuth }, async (req) => {
     const id = Number((req.params as { id: string }).id);
     return db.prepare('SELECT id, lang, format, created_at FROM reports WHERE scan_task_id = ? ORDER BY id').all(id);
+  });
+
+  const REPORT_MIME: Record<string, string> = {
+    html: 'text/html; charset=utf-8',
+    pdf: 'application/pdf',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  };
+
+  // 報表檔案下載（FR-404）。同源 httpOnly session cookie 即可授權，<a download> 直接命中。
+  app.get('/api/reports/:id/download', { preHandler: requireAuth }, async (req, reply) => {
+    const id = Number((req.params as { id: string }).id);
+    const row = db
+      .prepare('SELECT format, path FROM reports WHERE id = ?')
+      .get(id) as { format: string; path: string } | undefined;
+    if (!row) return reply.code(404).send({ code: 'not_found', messageKey: 'error.notFound' });
+    let content: Buffer;
+    try {
+      content = readFileSync(row.path);
+    } catch {
+      return reply.code(404).send({ code: 'not_found', messageKey: 'error.notFound' });
+    }
+    writeAudit(db, { userId: req.user!.userId, action: 'report.download', resource: `report:${id}` });
+    return reply
+      .header('content-type', REPORT_MIME[row.format] ?? 'application/octet-stream')
+      .header('content-disposition', `attachment; filename="${basename(row.path)}"`)
+      .send(content);
   });
 
   app.get('/api/settings', { preHandler: [requireAuth, requireRole('admin')] }, async () => {

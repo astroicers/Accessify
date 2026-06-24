@@ -527,7 +527,7 @@ milestones:
         spec: null
         srs_ref: FR-404
         depends_on: [T501, T502, T403]
-        status: pending
+        status: completed
         estimated_complexity: high
         source_type: manual
         source_ref: ""

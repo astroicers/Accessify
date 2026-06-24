@@ -1,6 +1,7 @@
 // 前端 API client（typed fetch；同源 /api，session token via Bearer）
 
 const TOKEN_KEY = 'accessify.token';
+const ROLE_KEY = 'accessify.role';
 
 export function getToken(): string | null {
   return typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
@@ -8,6 +9,18 @@ export function getToken(): string | null {
 export function setToken(token: string | null): void {
   if (token) localStorage.setItem(TOKEN_KEY, token);
   else localStorage.removeItem(TOKEN_KEY);
+}
+export function getRole(): string | null {
+  return typeof localStorage !== 'undefined' ? localStorage.getItem(ROLE_KEY) : null;
+}
+export function setRole(role: string | null): void {
+  if (role) localStorage.setItem(ROLE_KEY, role);
+  else localStorage.removeItem(ROLE_KEY);
+}
+
+/** 報表下載 URL（同源；session cookie 授權，供 <a download> 使用）。 */
+export function reportDownloadUrl(reportId: number): string {
+  return `/api/reports/${reportId}/download`;
 }
 
 export class ApiError extends Error {

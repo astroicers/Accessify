@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### Added
+- **M5/T504**：掃描 UI 主流程（ADR-005 / FR-404）`@accessify/web`：極簡 hash router（無外部相依，離線/穩定優先）+ 認證守衛 + 四頁面 — Login（含 mustChange 提醒橫幅）、Dashboard（掃描清單表格 + 狀態徽章）、CreateScan（admin、URL/sitemap、白名單錯誤回饋）、ScanResult（問題摘要 + 問題表 + 報表下載 + refresh）。新增 API `GET /api/reports/:id/download`（同源 httpOnly session cookie 授權、content-type/disposition、稽核）；前端以 `<a download>` 命中。i18n 雙語擴充 nav/login/scan/error 四區（key-diff 對齊）。**a11y 實證**：Playwright + axe-core 掃 production build，Login（zh-TW/en-US × light/dark）+ Dashboard/CreateScan/ScanResult（stub API、真實資料）共 6 變體 **0 WCAG 2.1 AA 違規**。`tsc -b`/`vite build`/lint 綠、87 unit tests green（+下載端點 200/404/401）。
 - **M5/T501**：前端 scaffold（ADR-005 / visual-web-stack 基礎層）`@accessify/web`：React 19 + Vite 6 + Tailwind v4 + react-i18next（共用 shared catalog，zh-TW/en-US，持久化偏好不被 Accept-Language 凌駕）+ next-themes + zustand；Layout（skip-link、語言/主題切換、可見 focus）、typed API client、reduced-motion 全域兜底。`vite build` production 綠（58 modules）、`tsc --noEmit` 綠。移除 3D/滾動層（自身 a11y/穩定）。
 - **M5/T502**：REST API（ADR-001 / FR-206）`@accessify/api` Fastify server：`/healthz`、`/api/openapi.json`（OpenAPI 契約）、auth login/logout（session cookie + Bearer）、scans 列表/建立(白名單+入列)/詳情/issues/reports、settings；session 中介層 + RBAC 守衛（admin/viewer）+ route schema 驗證 + 稽核。以 `fastify.inject` 測試（401/403/201/白名單）。
 - **M5/T503**：本地帳號 + RBAC + session + 登入鎖定（ADR-006 / FR-101~104）`@accessify/api`：bcryptjs（cost 12）hash/verify、`createUser`、`authenticate`（失敗累計鎖定）、server-side session（token 雜湊）、`hasRole`（admin 可 view）。core 遷移 0002 新增 sessions 表 + 鎖定/強制改密欄位（expand-contract）。

@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { openDb, runMigrations, type Db } from '@accessify/core';
 import { ensureAdmin } from './bootstrap.js';
 import { createUser } from './auth.js';
@@ -55,5 +58,29 @@ describe('REST API（T502 / FR-206）', () => {
       (await app.inject({ method: 'POST', url: '/api/scans', headers: h, payload: { target: 'https://intra.mil/', type: 'url' } })).statusCode,
     ).toBe(403);
     expect((await app.inject({ method: 'GET', url: '/api/settings', headers: h })).statusCode).toBe(403);
+  });
+
+  it('報表下載：有檔 200 + content-disposition；不存在 404（FR-404）', async () => {
+    const { db, app, adminPw } = await setup();
+    const token = await login(app, 'admin', adminPw);
+    const h = { authorization: `Bearer ${token}` };
+    const taskId = Number(
+      db
+        .prepare("INSERT INTO scan_tasks (target, type, status, created_by) VALUES ('https://intra.mil/','url','completed',1)")
+        .run().lastInsertRowid,
+    );
+    const file = join(mkdtempSync(join(tmpdir(), 'accessify-rep-')), 'report-zh-TW.html');
+    writeFileSync(file, '<!doctype html><title>r</title>');
+    const repId = Number(
+      db
+        .prepare("INSERT INTO reports (scan_task_id, lang, format, path) VALUES (?, 'zh-TW','html',?)")
+        .run(taskId, file).lastInsertRowid,
+    );
+    const ok = await app.inject({ method: 'GET', url: `/api/reports/${repId}/download`, headers: h });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.headers['content-disposition']).toContain('attachment');
+    expect(ok.headers['content-type']).toContain('text/html');
+    expect((await app.inject({ method: 'GET', url: '/api/reports/9999/download', headers: h })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'GET', url: `/api/reports/${repId}/download` })).statusCode).toBe(401);
   });
 });

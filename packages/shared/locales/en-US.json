@@ -36,5 +36,54 @@
     "engine": "Engine",
     "pageUrl": "Page",
     "noIssues": "No automatically detectable issues found"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "newScan": "New Scan",
+    "status": "Status",
+    "settings": "Settings",
+    "logout": "Log out"
+  },
+  "login": {
+    "title": "Sign in to Accessify",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "failed": "Invalid credentials, or the account is locked",
+    "mustChange": "Please change your password soon after first sign-in"
+  },
+  "scan": {
+    "listTitle": "Scans",
+    "create": "Create Scan",
+    "target": "Target URL",
+    "targetHint": "e.g. https://example.mil (must be whitelisted)",
+    "type": "Type",
+    "url": "Single URL",
+    "sitemap": "Sitemap",
+    "submit": "Start Scan",
+    "status": "Status",
+    "created": "Created",
+    "actions": "Actions",
+    "view": "View",
+    "noScans": "No scans yet",
+    "queued": "Queued",
+    "running": "Running",
+    "completed": "Completed",
+    "failed": "Failed",
+    "resultTitle": "Scan Result",
+    "back": "Back",
+    "issues": "Issues",
+    "reports": "Reports",
+    "downloadReport": "Download",
+    "refresh": "Refresh",
+    "score": "Site Score"
+  },
+  "error": {
+    "unauthorized": "Please sign in",
+    "forbidden": "Forbidden",
+    "notFound": "Not found",
+    "notWhitelisted": "Target is not whitelisted; add it on the Settings page",
+    "login": "Invalid username or password",
+    "unknown": "An unexpected error occurred"
   }
 }
