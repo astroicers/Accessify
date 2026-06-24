@@ -257,7 +257,7 @@ milestones:
         spec: null
         srs_ref: FR-203
         depends_on: [T102]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""

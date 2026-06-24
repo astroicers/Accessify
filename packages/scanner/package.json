@@ -12,6 +12,7 @@
   "dependencies": {
     "@axe-core/playwright": "^4.10.1",
     "axe-core": "^4.10.2",
+    "html_codesniffer": "^2.5.1",
     "playwright": "^1.49.1"
   }
 }

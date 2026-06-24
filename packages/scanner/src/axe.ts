@@ -3,6 +3,7 @@
 
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from 'playwright';
+import type { Finding } from './findings.js';
 
 export interface AxeNode {
   target: string[];
@@ -19,17 +20,6 @@ export interface AxeViolation {
 
 export interface AxeResults {
   violations: AxeViolation[];
-}
-
-/** 來自單一引擎的原始 finding（WCAG 對應與嚴重度分級於 mapping 套件，M2）。 */
-export interface Finding {
-  engine: 'axe-core';
-  ruleId: string;
-  impact: string | null;
-  wcagTags: string[];
-  selector: string;
-  message: string;
-  helpUrl?: string;
 }
 
 /** 將 axe 結果攤平為逐筆 finding（純函式，便於單元測試）。 */
