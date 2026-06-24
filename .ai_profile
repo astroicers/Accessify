@@ -1,0 +1,17 @@
+# Accessify — ASP 專案設定（v5 三級制）
+# 場域：地端、無網際網路（軍用網路）；穩定優先；強制 i18n（zh-TW + en-US）
+project: Accessify
+name: Accessify
+type: system
+level: autonomous          # ROADMAP 驅動，autopilot 逐任務執行
+mode: auto                 # 不啟用 multi-agent（v5 已凍結為 Experimental）
+workflow: standard
+hitl: standard             # 穩定優先：每個任務實作前暫停讓人審方向
+rag: disabled              # 無 showcase / 離線場域
+autonomous: enabled
+orchestrator: enabled
+autopilot: enabled
+coding_style: enabled
+design: enabled            # 載入 design_dev + frontend_quality → i18n / a11y / 三態驗證強制
+frontend_quality: enabled
+openapi: enabled           # 載入 openapi → REST API 契約品質門檻

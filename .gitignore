@@ -1,0 +1,55 @@
+# ── ASP 執行時檔案（自動產生，本機限定，不進版控）──
+.asp-session-briefing.json
+.asp-managed-deny.json
+.asp-audit-baseline.json
+.asp-bypass-log.ndjson
+.asp-telemetry.jsonl
+.asp-review-calibration.jsonl
+.asp-orch-state.json
+.asp-compiled-profile.md
+.asp-autopilot-state.json
+.asp-gate-state.json
+.asp-test-result.json
+# 注意：.asp-metrics-baseline.json 刻意保留版控（ADR-013：對照證據需 commit）
+
+# ── Claude Code 本地覆寫 ──
+.claude/settings.json.bak
+.claude/settings.local.json
+
+# ── 安裝/升級備份 ──
+CLAUDE.md.pre-asp
+Makefile.pre-asp-upgrade
+
+# ── Node / TypeScript ──
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.npm/
+.eslintcache
+
+# ── 測試與覆蓋率 ──
+coverage/
+.nyc_output/
+*.lcov
+
+# ── 執行期資料（地端 volume，不進版控）──
+/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+/reports/
+
+# ── 離線交付產物（映像 tar 等，過大不進版控）──
+*.tar
+*.tar.gz
+vendor-offline/
+
+# ── 環境檔 ──
+.env
+.env.local
+.env.*.local
+
+# ── 雜項 ──
+.DS_Store
+*.log

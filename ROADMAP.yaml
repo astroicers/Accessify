@@ -1,0 +1,764 @@
+# ROADMAP.yaml — Accessify Autopilot 任務清單
+# 地端、無網際網路（軍網）；穩定優先；強制 i18n（zh-TW + en-US）。
+# 使用：.ai_profile 已設 autopilot: enabled。引用 ADR 的任務，該 ADR 須先升 Accepted。
+# 由原 SaaS 文件改寫：捨棄多租戶/計費/雲端/對外掃描，聚焦掃描→對應→雙語報表→本地 Portal→地端交付。
+
+version: "1.0"
+project: Accessify
+last_updated: 2026-06-24
+
+# ═══ 專案元資料 ═══
+
+stack:
+  frontend: react
+  backend: node
+  database: sqlite
+  infra: docker
+
+requires:
+  uiux: true               # → design_dev + frontend_quality；需 docs/UIUX_SPEC.md
+  api: true                # → openapi；需 docs/SDS.md API 段落
+  multi_agent: false
+  rag: false
+  coding_style: true
+
+conventions:
+  language: zh-TW           # 程式碼註解語言
+  naming: camelCase
+  error_handling: exception
+  commit_format: conventional
+  branch_strategy: github-flow
+
+architecture:
+  style: modular-monolith
+  api_style: rest
+  auth: session            # 本地帳號 + RBAC（ADR-006）
+  message_queue: none      # 內嵌佇列（SQLite jobs 表）
+  cache: none
+  search: none
+
+integrations: []           # 無外部整合（離線場域）
+
+quality:
+  test_coverage_target: 80%
+  e2e_required: true
+  performance_budget: false
+  accessibility: WCAG-2.1-AA   # 本產品自身 UI 須通過
+
+security:
+  compliance: []           # 地端內網；不適用 SaaS 類合規
+  auth_requirements:
+    mfa: false
+    session_timeout: 30m     # 可由 .env 覆寫
+    password_policy: strong
+
+observability:
+  logging: structured
+  metrics: none
+  tracing: none
+  alerting: none
+
+documents:
+  srs: docs/SRS.md
+  sds: docs/SDS.md
+  uiux_spec: docs/UIUX_SPEC.md
+  deploy_spec: docs/DEPLOY_SPEC.md
+
+# ═══ Milestones & Tasks ═══
+
+milestones:
+  - id: M0
+    title: "專案基線與離線基礎建設"
+    target_date: 2026-07-08
+    status: pending
+    tasks:
+      - id: T001
+        title: "Monorepo 骨架與工具鏈（npm workspaces、TS、lint、test、版本 pin）"
+        type: NEW_FEATURE
+        priority: 1
+        adr: ADR-001
+        spec: null
+        srs_ref: null
+        depends_on: []
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          建立 npm workspaces monorepo：packages/{shared,core,scanner,mapping,report,api,web}。
+          設定 TypeScript、ESLint、Prettier、Vitest；以 lockfile pin 所有版本（穩定優先）。
+          產出 make/script：build、lint、test、coverage。
+      - id: T002
+        title: "i18n 基礎框架（i18next、zh-TW/en-US catalog、no-hardcoded lint）"
+        type: NEW_FEATURE
+        priority: 2
+        adr: ADR-004
+        spec: null
+        srs_ref: FR-401
+        depends_on: [T001]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          於 packages/shared 建立 i18next 與 locales/{zh-TW,en-US}.json，前端/後端/報表共用。
+          預設 zh-TW、fallback en-US。加入 ESLint 規則禁止使用者可見 hardcoded 字串，
+          並於 CI 檢查雙語 key 對齊（無缺漏/多餘）。
+      - id: T003
+        title: "SQLite schema baseline + migration + jobs 表"
+        type: NEW_FEATURE
+        priority: 3
+        adr: ADR-003
+        spec: null
+        srs_ref: FR-206
+        depends_on: [T001]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          建立 SQLite（WAL）schema：users/scan_tasks/jobs/pages/issues/reports/audit_logs/settings，
+          含索引與版本化 migration（expand-contract／向後相容，配合映像回滾）。jobs 表支援內嵌佇列狀態。
+      - id: T004
+        title: "Base Docker 映像（Node + Chromium + 字型）+ 離線 vendoring + 可重現建置"
+        type: NEW_FEATURE
+        priority: 4
+        adr: ADR-002
+        spec: null
+        srs_ref: null
+        depends_on: [T001]
+        status: pending
+        estimated_complexity: high
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          建立 base 映像：固定 base digest 與 Node 版本，內建 Playwright Chromium、
+          Noto Sans TC + Inter 子集化 woff2、所有 npm 相依（npm ci --offline / vendored）。
+          確保斷網下可建置且輸出可重現（相同輸入→相同 digest）。
+          better-sqlite3 等原生模組離線 prebuilt（鎖 Node ABI）或內建 build toolchain；
+          Chromium 容器設定（init/shm/sandbox，依 ADR-009）。
+      - id: T005
+        title: "CI 與品質門檻 + 基準站台 fixtures（防回歸）"
+        type: NEW_FEATURE
+        priority: 5
+        adr: ADR-002
+        spec: null
+        srs_ref: null
+        depends_on: [T001]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          建立本地/CI 品質門檻（lint、test、coverage）與一組「基準測試站台」HTML fixtures，
+          供掃描引擎/對應引擎做回歸（鎖定引擎版本後結果應穩定）。
+      - id: T006
+        title: "i18n key-diff + no-hardcoded lint CI 閘"
+        type: NEW_FEATURE
+        priority: 6
+        adr: ADR-004
+        spec: null
+        srs_ref: null
+        depends_on: [T002, T005]
+        status: pending
+        estimated_complexity: low
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          於 CI 加入 i18n key-diff 檢查（zh-TW/en-US key 對齊，無缺漏/多餘）與 no-hardcoded
+          字串 lint 閘，未通過即擋下 PR。
+      - id: T007
+        title: "前端 a11y + e2e 測試框架 (Playwright + axe-core in CI)"
+        type: NEW_FEATURE
+        priority: 7
+        adr: ADR-005
+        spec: null
+        srs_ref: null
+        depends_on: [T005]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          建立前端 a11y 與 e2e 測試框架（Playwright + axe-core in CI），支撐
+          quality.accessibility=WCAG-2.1-AA 與 e2e_required:true；供 T501/T504 驗收引用。
+
+  - id: M1
+    title: "掃描核心"
+    target_date: 2026-07-22
+    status: pending
+    tasks:
+      - id: T101
+        title: "Playwright headless 渲染封裝（robots/速率/白名單）"
+        type: NEW_FEATURE
+        priority: 1
+        adr: ADR-009
+        spec: null
+        srs_ref: FR-201
+        srs_refs: [FR-201, FR-205]
+        depends_on: [T004]
+        status: pending
+        estimated_complexity: high
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          封裝 headless Chromium 渲染（等待 network idle / 自訂條件，支援 SPA）。
+          實作掃描禮儀：遵守 robots、速率限制，且僅允許白名單內網站台（FR-205）。
+          白名單於每個出站請求強制（Playwright route 攔截）+ redirect 後最終 URL 與所有子資源主機重新校驗
+          + 解析後 IP 黑名單（loopback、link-local 169.254.0.0/16、容器網段、未列白名單 RFC1918）+ 禁 file://；
+          資源上限（每頁 navigation timeout、每任務最大頁數、context 記憶體/逾時即 kill、重導/回應大小上限），
+          單頁失敗隔離不可拖垮 worker。參考 ADR-002/007/009。
+      - id: T102
+        title: "axe-core 整合 → raw findings"
+        type: NEW_FEATURE
+        priority: 2
+        adr: ADR-007
+        spec: null
+        srs_ref: FR-202
+        depends_on: [T101]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          以注入方式於頁面執行 axe-core（pin 版本），輸出原始 findings。對基準站台結果可重現。
+      - id: T103
+        title: "pa11y/HTMLCS 整合 + 與 axe 整併去重"
+        type: NEW_FEATURE
+        priority: 3
+        adr: ADR-007
+        spec: null
+        srs_ref: FR-203
+        depends_on: [T102]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          整合 pa11y/HTML CodeSniffer，與 axe-core 結果依 rule+selector+訊息整併去重。
+      - id: T104
+        title: "URL/sitemap 探索與逐頁掃描編排 → 結構化 findings"
+        type: NEW_FEATURE
+        priority: 4
+        adr: null
+        spec: null
+        srs_ref: FR-204
+        depends_on: [T103, T003]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          由單一 URL 或 sitemap 探索頁面集合，逐頁掃描並寫入 pages/issues，輸出結構化結果。
+
+  - id: M2
+    title: "WCAG 對應引擎"
+    target_date: 2026-07-29
+    status: pending
+    tasks:
+      - id: T201
+        title: "規則碼 → WCAG 2.0/2.1（A・AA）對應（資料驅動）"
+        type: NEW_FEATURE
+        priority: 1
+        adr: ADR-007
+        spec: null
+        srs_ref: FR-301
+        depends_on: [T104]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          以可維護的資料表將 axe/pa11y 規則碼對應到 WCAG 準則與等級（A/AA）。每個 finding 皆有對應。
+      - id: T202
+        title: "嚴重度分級 + 站台分數"
+        type: NEW_FEATURE
+        priority: 2
+        adr: null
+        spec: null
+        srs_ref: FR-302
+        depends_on: [T201]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          定義嚴重度（嚴重/高/中/低/提示）規則並計算站台分數（可重現）。
+      - id: T203
+        title: "涵蓋率與誠實標示（自動涵蓋 vs 需人工檢測）"
+        type: NEW_FEATURE
+        priority: 3
+        adr: ADR-007
+        spec: null
+        srs_ref: FR-303
+        depends_on: [T201]
+        status: pending
+        estimated_complexity: low
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          計算並標示自動涵蓋的 WCAG 準則 vs 需人工檢測者；明確不宣稱 100% 合規（誠實實作原則）。
+
+  - id: M3
+    title: "雙語報表引擎"
+    target_date: 2026-08-05
+    status: pending
+    tasks:
+      - id: T301
+        title: "報表資料模型 + i18n HTML 樣板（zh-TW/en-US）"
+        type: NEW_FEATURE
+        priority: 1
+        adr: ADR-004
+        spec: null
+        srs_ref: FR-401
+        depends_on: [T202, T203, T002]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          設計報表資料模型與 i18n HTML 樣板（封面/總覽/WCAG 對應/頁面明細/修正建議/涵蓋率），
+          雙語透過 i18next key，無 hardcoded。
+      - id: T302
+        title: "PDF 輸出（Playwright print + 內嵌 CJK 字型，離線）"
+        type: NEW_FEATURE
+        priority: 2
+        adr: ADR-002
+        spec: null
+        srs_ref: FR-402
+        depends_on: [T301]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          以 Playwright print-to-PDF 由 HTML 樣板輸出 PDF，內嵌 Noto Sans TC，確保中文不缺字、離線可產生。
+          報表/PDF 路徑使用「完整（非子集）」Noto Sans TC 避免動態內容缺字；驗收含任意 CJK 字元完整性。
+      - id: T303
+        title: "Excel 輸出（ExcelJS 修改清單）"
+        type: NEW_FEATURE
+        priority: 3
+        adr: null
+        spec: null
+        srs_ref: FR-403
+        depends_on: [T301]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          以 ExcelJS 產出修改清單（每問題一列，含 WCAG 準則、嚴重度、選擇器、修正建議、狀態欄供追蹤）。
+          ExcelJS 版本 pin + 產生 xlsx fixture 測試（可開啟、CJK 表頭完整）。
+
+  - id: M4
+    title: "任務佇列與背景 Worker"
+    target_date: 2026-08-19
+    status: pending
+    tasks:
+      - id: T401
+        title: "SQLite 內嵌佇列 + 單一 worker（背景長任務、重試、續接）"
+        type: NEW_FEATURE
+        priority: 1
+        adr: ADR-003
+        spec: null
+        srs_ref: FR-206
+        depends_on: [T003, T104]
+        status: pending
+        estimated_complexity: high
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          以 jobs 表實作內嵌佇列與單一 worker：原子領取、重試上限、worker 重啟後孤兒任務續接（冪等）。
+      - id: T402
+        title: "任務生命週期狀態機 + 稽核日誌"
+        type: NEW_FEATURE
+        priority: 2
+        adr: null
+        spec: null
+        srs_ref: FR-104
+        depends_on: [T401]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          實作 ScanTask 狀態機（queued/running/completed/failed/續接）與稽核日誌寫入。
+      - id: T403
+        title: "報表產生觸發 + 本地檔案系統儲存"
+        type: NEW_FEATURE
+        priority: 3
+        adr: ADR-002
+        spec: null
+        srs_ref: FR-404
+        depends_on: [T401, T301]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          掃描完成後觸發報表產生（HTML/PDF/Excel × zh-TW/en-US），存入本地 reports volume 並登錄 reports 表。
+
+  - id: M5
+    title: "本地 Web Portal"
+    target_date: 2026-09-09
+    status: pending
+    tasks:
+      - id: T501
+        title: "前端 scaffold（visual-web-stack 基礎層 + i18n 切換 + next-themes + reduced-motion）"
+        type: NEW_FEATURE
+        priority: 1
+        adr: ADR-005
+        spec: null
+        srs_ref: null
+        depends_on: [T002]
+        status: pending
+        estimated_complexity: high
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          React 19 + Vite + TS + Tailwind + Radix + Zustand + next-themes（移除 R3F/Lenis/GSAP）。
+          語言切換、主題切換、強制 prefers-reduced-motion、離線字型。骨架須符合自身 WCAG-AA 基線。
+          屬使能基建，a11y 基線由 T007 驗收。
+      - id: T502
+        title: "後端 REST API + OpenAPI 契約"
+        type: NEW_FEATURE
+        priority: 2
+        adr: ADR-001
+        spec: null
+        srs_ref: FR-206
+        depends_on: [T401]
+        status: pending
+        estimated_complexity: high
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          實作 REST API（scans/issues/reports/settings/users/auth），以 OpenAPI 描述契約，
+          訊息走 i18next。受 openapi profile 品質門檻把關。
+      - id: T503
+        title: "本地帳號 + RBAC + 稽核"
+        type: NEW_FEATURE
+        priority: 3
+        adr: ADR-006
+        spec: null
+        srs_ref: FR-101
+        srs_refs: [FR-101, FR-102, FR-103]
+        depends_on: [T502]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          本地帳號（bcrypt cost≥12）、session 逾時、登入失敗鎖定、RBAC（admin/viewer）、關鍵操作稽核。
+          涵蓋 FR-101/102/103/104。admin bootstrap 由 T506 負責。
+      - id: T504
+        title: "建立掃描任務 UI + 結果檢視 + 報表下載（UI 自身 WCAG-AA）"
+        type: NEW_FEATURE
+        priority: 4
+        adr: ADR-005
+        spec: null
+        srs_ref: FR-404
+        depends_on: [T501, T502, T403]
+        status: pending
+        estimated_complexity: high
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          /scans/new、/scans/:id（問題清單 + WCAG 對應 + 嚴重度 + 涵蓋率標示）、/reports 下載。
+          以 axe + 鍵盤 + screen reader 驗證自身達 WCAG 2.1 AA。
+      - id: T505
+        title: "系統設定頁（白名單/速率/語言/排程預設/SMTP）"
+        type: NEW_FEATURE
+        priority: 5
+        adr: ADR-006
+        spec: null
+        srs_ref: FR-601
+        depends_on: [T503]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          admin 設定白名單、速率、預設語言、排程預設、（選用）內網 SMTP；變更即時生效並入稽核。
+      - id: T506
+        title: "首位 admin 離線 bootstrap"
+        type: NEW_FEATURE
+        priority: 6
+        adr: ADR-006
+        spec: null
+        srs_ref: FR-101
+        depends_on: [T503]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          首次啟動以互動建立或一次性隨機密碼強制改密方式 bootstrap 首位 admin；
+          嚴禁固定預設密碼；納入 T702 smoke。
+      - id: T507
+        title: "本地健康/狀態頁 + 站內閾值告警"
+        type: NEW_FEATURE
+        priority: 7
+        adr: ADR-011
+        spec: null
+        srs_ref: FR-602
+        depends_on: [T502]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          建立 /status 健康/狀態頁（worker 心跳、佇列積壓、最近失敗、磁碟用量、DB integrity、
+          排程上次/下次、憑證到期天數），磁碟/憑證閾值站內告警（無外網）。
+
+  - id: M6
+    title: "排程重掃與變更追蹤"
+    target_date: 2026-09-23
+    status: pending
+    tasks:
+      - id: T601
+        title: "簡易排程器（週期重掃內網站台）"
+        type: NEW_FEATURE
+        priority: 1
+        adr: ADR-010
+        spec: null
+        srs_ref: FR-501
+        depends_on: [T502, T505]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          以 DB 驅動輪詢實作週期排程，依設定觸發內網站台重掃（不依賴外網時鐘服務）。
+          採相對間隔、TZ=Asia/Taipei（依 ADR-010）。
+      - id: T602
+        title: "掃描差異比對（已修復/新增/未改）"
+        type: NEW_FEATURE
+        priority: 2
+        adr: null
+        spec: null
+        srs_ref: FR-502
+        depends_on: [T601, T202]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          將本次掃描與上次比對，分類問題為已修復/新增/未改，呈現於結果與報表（供追蹤）。
+      - id: T603
+        title: "站內通知 + 選用內網 SMTP（預設關閉）"
+        type: NEW_FEATURE
+        priority: 3
+        adr: null
+        spec: null
+        srs_ref: FR-503
+        depends_on: [T602]
+        status: pending
+        estimated_complexity: low
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          掃描完成/差異產生時站內通知；內網 SMTP 為選用且預設關閉（無網際網路依賴）。
+
+  - id: M7
+    title: "地端交付與穩定性"
+    target_date: 2026-10-07
+    status: pending
+    tasks:
+      - id: T701
+        title: "docker-compose 一鍵部署 + .env 範本 + healthchecks"
+        type: NEW_FEATURE
+        priority: 1
+        adr: ADR-002
+        spec: null
+        srs_ref: null
+        depends_on: [T004, T502]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          撰寫 docker-compose（api + worker + volumes）、.env.example、容器 healthcheck；單機可起。
+          worker 容器 init/shm/sandbox（ADR-009）、TZ=Asia/Taipei（ADR-010）。
+      - id: T702
+        title: "離線安裝包（docker save tar + 安裝/驗證腳本）+ smoke test"
+        type: NEW_FEATURE
+        priority: 2
+        adr: ADR-002
+        spec: null
+        srs_ref: null
+        depends_on: [T701]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          產出離線安裝包：docker save 映像 tar、install.sh、verify.sh（smoke test：登入→掃描基準站台→產報表含中文 PDF）。
+      - id: T703
+        title: "備份/還原（SQLite + reports）+ 升級/回滾 runbook"
+        type: NEW_FEATURE
+        priority: 3
+        adr: ADR-003
+        spec: null
+        srs_ref: null
+        depends_on: [T701]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          backup.sh/restore.sh（一致性快照：Online Backup API／VACUUM INTO + reports volume）、upgrade.sh/rollback.sh（保留前一版映像、expand-contract migration、升級前強制備份）、
+          撰寫 RUNBOOK；回滾須一鍵且資料完整（因進場困難）。
+      - id: T704
+        title: "部署驗收與穩定性測試（冒煙/重啟存活/離線）"
+        type: GENERAL
+        priority: 4
+        adr: ADR-002
+        spec: null
+        srs_ref: null
+        depends_on: [T702, T703]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          斷網部署演練、容器重啟後資料/任務存活、升級+回滾演練、整體 smoke 通過，作為交付驗收。
+          斷網 0 外連、worker 崩潰恢復 RTO、磁碟閾值行為、單頁逾時不拖垮佇列、備份→還原→回滾端到端必過。
+      - id: T705
+        title: "資料保留與磁碟治理 (日誌輪替/報表清理/WAL checkpoint)"
+        type: NEW_FEATURE
+        priority: 5
+        adr: ADR-011
+        spec: null
+        srs_ref: FR-603
+        depends_on: [T403, T505]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          日誌 size/time 輪替 + 保留份數（可設定）、reports 與舊 scan/issue 保留期自動清理（可設定，
+          預設保留 N 次或 X 天）、SQLite WAL wal_autocheckpoint + 定期 PRAGMA wal_checkpoint(TRUNCATE)
+          防 -wal 膨脹；確保長跑下磁碟不無界成長。
+      - id: T706
+        title: "內網 TLS 憑證佈建與輪替"
+        type: NEW_FEATURE
+        priority: 6
+        adr: ADR-008
+        spec: null
+        srs_ref: null
+        depends_on: [T701]
+        status: pending
+        estimated_complexity: medium
+        source_type: manual
+        source_ref: ""
+        triggered_by: manual
+        sla_hours: 72
+        imported_at: ""
+        description: |
+          內網 TLS 憑證佈建（api 容器終結，TLS_CERT_PATH/TLS_KEY_PATH）、自簽產生腳本 + 匯入內網信任鏈指引、
+          維持零對外（停用 OCSP/CRL 線上檢查）、憑證到期站內告警（見 ADR-011）與輪替 runbook。
