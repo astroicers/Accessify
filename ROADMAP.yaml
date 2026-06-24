@@ -404,7 +404,7 @@ milestones:
   - id: M4
     title: "任務佇列與背景 Worker"
     target_date: 2026-08-19
-    status: pending
+    status: completed
     tasks:
       - id: T401
         title: "SQLite 內嵌佇列 + 單一 worker（背景長任務、重試、續接）"
@@ -414,7 +414,7 @@ milestones:
         spec: null
         srs_ref: FR-206
         depends_on: [T003, T104]
-        status: pending
+        status: completed
         estimated_complexity: high
         source_type: manual
         source_ref: ""
@@ -431,7 +431,7 @@ milestones:
         spec: null
         srs_ref: FR-104
         depends_on: [T401]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -448,7 +448,7 @@ milestones:
         spec: null
         srs_ref: FR-404
         depends_on: [T401, T301]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""

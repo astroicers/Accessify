@@ -5,6 +5,11 @@
 ## [Unreleased]
 
 ### Added
+- **M4 任務佇列與背景 Worker（T401–T403，完成）** `@accessify/core`：
+  - T401 內嵌佇列（FR-206）：`enqueueJob`/`claimJob`（原子領取）/`heartbeat`/`completeJob`/`failJob`（重試）/`reclaimExpired`（孤兒回收）；lease/heartbeat 續接。
+  - T402 狀態機+稽核（FR-104）：`setScanTaskStatus`（合法轉移驗證）、`writeAudit`；`processNextJob`/`runWorker`（DI、單頁/單任務失敗隔離）。
+  - T403 報表觸發+儲存（FR-404）：`saveReport`（寫本地 volume + reports 表）。
+  - **端到端實證**：enqueue → worker → scan → map(severity) → persist 8 issues → 產 6 雙語報表（zh-TW/en-US × html/xlsx/pdf）→ 儲存 → scan_task completed + 稽核。
 - **M3 雙語報表引擎（T301–T303，完成）** `@accessify/report`：i18n 報表資料模型 + chrome 走 shared i18next（zh-TW/en-US）。
   - T301 HTML（FR-401）：`renderHtmlReport()`，含涵蓋率誠實標示；不可信內容一律 HTML 轉義（防 XSS）。
   - T302 PDF（FR-402）：`htmlToPdf()`（Playwright print，CJK 完整字型由映像提供）。
