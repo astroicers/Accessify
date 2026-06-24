@@ -6,3 +6,5 @@ export * from './egress.js';
 export * from './render.js';
 export * from './axe.js';
 export * from './htmlcs.js';
+export * from './discover.js';
+export * from './scan.js';

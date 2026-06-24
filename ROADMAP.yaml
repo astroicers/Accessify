@@ -207,7 +207,7 @@ milestones:
   - id: M1
     title: "掃描核心"
     target_date: 2026-07-22
-    status: pending
+    status: completed
     tasks:
       - id: T101
         title: "Playwright headless 渲染封裝（robots/速率/白名單）"
@@ -274,7 +274,7 @@ milestones:
         spec: null
         srs_ref: FR-204
         depends_on: [T103, T003]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""

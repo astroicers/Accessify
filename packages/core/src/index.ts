@@ -3,3 +3,4 @@ export const PACKAGE = '@accessify/core' as const;
 
 export * from './db.js';
 export * from './migrate.js';
+export * from './persist.js';
