@@ -3,3 +3,4 @@ export const PACKAGE = '@accessify/scanner' as const;
 
 export * from './egress.js';
 export * from './render.js';
+export * from './axe.js';

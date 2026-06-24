@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### Added
+- **M1/T102**：axe-core 注入 → raw findings（ADR-007 / FR-202）— `@accessify/scanner` `runAxe(page)`（axe-core MPL-2.0 未修改注入、withTags wcag2a/2aa/21a/21aa）、`normalizeAxe()`（攤平 violations×nodes，取 ruleId/impact/wcagTags/selector/message/helpUrl）。真實驗證：golden fixture 掃出 4 筆 WCAG findings（button-name/html-has-lang/image-alt/label），clean fixture 0 筆。
 - **M1/T101**：掃描渲染 + 出站安全（ADR-009 / FR-201/205）— `@accessify/scanner`：`egress` 白名單/SSRF 政策（每出站請求校驗、redirect/子資源、loopback/link-local/metadata/0.0.0.0 一律封鎖、禁非 http(s)、私有 IP 須白名單）、`renderPage`（Playwright headless + route 攔截強制 egress + 資源上限）。Chromium 真實渲染已驗證（page.evaluate 偵測 golden fixture 已知問題）。
 - **M0/T006**：i18n key-diff CI 閘（ADR-004）— `key-diff.test.ts`（zh-TW/en-US key 集合完全一致，CI 強制）；`no-literal-string` 收緊為 **error**（web/api 層）。
 - **M0/T007**：a11y/e2e 測試框架（ADR-005）— `@playwright/test` + `@axe-core/playwright`、`playwright.config.ts`（locale zh-TW、TZ Asia/Taipei）、`e2e/a11y.spec.ts`（WCAG 2.1 AA 驗收骨架，M5 啟用）、`make e2e`。**M0 完成（T001–T007）**。
