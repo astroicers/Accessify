@@ -8,5 +8,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -b"
+  },
+  "dependencies": {
+    "@accessify/core": "0.1.0",
+    "bcryptjs": "^3.0.3"
   }
 }

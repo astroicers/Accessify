@@ -94,7 +94,26 @@ CREATE INDEX idx_issues_severity ON issues (severity);
 CREATE INDEX idx_audit_user_ts ON audit_logs (user_id, timestamp);
 `;
 
-export const MIGRATIONS: Migration[] = [{ version: 1, name: 'init', up: INIT_SQL }];
+// 0002：認證強化（登入鎖定、強制改密）+ server-side session（ADR-006）。expand-contract，僅新增。
+const AUTH_SQL = `
+ALTER TABLE users ADD COLUMN failed_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN locked_until TEXT;
+ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_sessions_token ON sessions (token_hash);
+`;
+
+export const MIGRATIONS: Migration[] = [
+  { version: 1, name: 'init', up: INIT_SQL },
+  { version: 2, name: 'auth_sessions', up: AUTH_SQL },
+];
 
 /**
  * 套用所有待辦遷移（單一交易、冪等）。回傳本次套用的遷移數。

@@ -5,6 +5,8 @@
 ## [Unreleased]
 
 ### Added
+- **M5/T503**：本地帳號 + RBAC + session + 登入鎖定（ADR-006 / FR-101~104）`@accessify/api`：bcryptjs（cost 12）hash/verify、`createUser`、`authenticate`（失敗累計鎖定）、server-side session（token 雜湊）、`hasRole`（admin 可 view）。core 遷移 0002 新增 sessions 表 + 鎖定/強制改密欄位（expand-contract）。
+- **M5/T506**：首位 admin 離線 bootstrap（ADR-006）`ensureAdmin`：無 admin 時建立；未提供密碼則產生一次性隨機密碼並強制首登改密；嚴禁固定預設。
 - **M4 任務佇列與背景 Worker（T401–T403，完成）** `@accessify/core`：
   - T401 內嵌佇列（FR-206）：`enqueueJob`/`claimJob`（原子領取）/`heartbeat`/`completeJob`/`failJob`（重試）/`reclaimExpired`（孤兒回收）；lease/heartbeat 續接。
   - T402 狀態機+稽核（FR-104）：`setScanTaskStatus`（合法轉移驗證）、`writeAudit`；`processNextJob`/`runWorker`（DI、單頁/單任務失敗隔離）。
