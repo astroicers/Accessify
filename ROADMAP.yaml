@@ -218,7 +218,7 @@ milestones:
         srs_ref: FR-201
         srs_refs: [FR-201, FR-205]
         depends_on: [T004]
-        status: pending
+        status: completed
         estimated_complexity: high
         source_type: manual
         source_ref: ""
