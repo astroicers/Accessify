@@ -60,7 +60,8 @@ export async function renderPage(url: string, options: RenderOptions): Promise<R
   const browser =
     options.browser ??
     (await chromium.launch({ headless: true, chromiumSandbox: options.chromiumSandbox ?? true }));
-  const context = await browser.newContext();
+  // bypassCSP：使被掃頁面 CSP 不阻擋分析腳本注入（egress 仍由 context.route 每請求強制，ADR-009）。
+  const context = await browser.newContext({ bypassCSP: true });
   const blocked: BlockedRequest[] = [];
   await context.route('**/*', makeRouteHandler(options.policy, blocked) as Parameters<typeof context.route>[1]);
 

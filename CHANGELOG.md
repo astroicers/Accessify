@@ -72,6 +72,13 @@
 - `ROADMAP.yaml`：autopilot 任務清單，8 個 milestone（M0–M7）、30 個任務。
 - 由原 SaaS 設計改寫為地端、無網際網路、穩定優先、強制 i18n（zh-TW/en-US）。
 
+### Fixed
+- **掃描器於嚴格 CSP 站台整個失敗（release 驗證發現）**：被掃頁面的 `Content-Security-Policy: script-src` 會阻擋
+  axe/HTMLCS 的 `page.addScriptTag` 注入，導致掃描拋錯中止。修復：建立 Playwright context 時加 `bypassCSP: true`
+  （`scanner/scan.ts`、`render.ts`）。**出站白名單仍由 `context.route` 每請求強制，與 CSP 無關 → SSRF 邊界不受影響（ADR-009）**。
+  以真實掃描 https://github.com/ 驗證：修復後 10 findings（htmlcs）+ 6 雙語報表含中文 PDF（修復前 0、直接失敗）。
+- 新增 `scripts/scan-url.mjs`（開發/release 驗證用 CLI：對單一白名單 URL 跑完整管線；亦為 CSP 回歸驗證工具）。
+
 ### Changed（對抗式審查後強化）
 - 經多代理人審查（60 條確認 finding）後強化：新增 ADR-008（內網 TLS/secrets）、ADR-009（Chromium sandbox + 掃描器出站安全）、ADR-010（離線時間/排程）、ADR-011（資料保留/磁碟/可觀測）。
 - 更正第三方引擎授權標示：axe-core MPL-2.0、pa11y LGPL-3.0-only、HTML_CodeSniffer **BSD-3-Clause**（先前誤標 LGPL）；查證紀錄於 `.asp-fact-check.md`。

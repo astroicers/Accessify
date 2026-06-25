@@ -44,7 +44,9 @@ export async function scanUrl(url: string, options: ScanUrlOptions): Promise<Mer
   const browser =
     options.browser ??
     (await chromium.launch({ headless: true, chromiumSandbox: options.chromiumSandbox ?? true }));
-  const context = await browser.newContext();
+  // bypassCSP：讓被掃頁面的 CSP 不阻擋 axe/HTMLCS 注入（否則嚴格 CSP 站台掃描整個失敗）。
+  // 出站白名單由下方 context.route 每請求強制，與 CSP 無關 → SSRF 邊界不受影響（ADR-009）。
+  const context = await browser.newContext({ bypassCSP: true });
   const blocked: { url: string; reason: string }[] = [];
   await context.route('**/*', makeRouteHandler(options.policy, blocked) as Parameters<typeof context.route>[1]);
   const page = await context.newPage();
