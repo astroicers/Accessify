@@ -127,10 +127,27 @@ CREATE UNIQUE INDEX idx_schedules_target ON schedules (target);
 CREATE INDEX idx_schedules_due ON schedules (enabled, next_run_at);
 `;
 
+// 0004：站內通知（T603 / FR-503）。訊息存 i18n key + params（顯示時依使用者語系渲染，不存在地化字串）。
+// SMTP（外送）刻意未實作：屬新執行期相依 + 新出站路徑，依鐵則須先有 ADR（待 ADR-012）。
+const NOTIFICATIONS_SQL = `
+CREATE TABLE notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  scan_task_id INTEGER REFERENCES scan_tasks(id) ON DELETE CASCADE,
+  message_key TEXT NOT NULL,
+  params_json TEXT,
+  read INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_notifications_user ON notifications (user_id, read, id);
+`;
+
 export const MIGRATIONS: Migration[] = [
   { version: 1, name: 'init', up: INIT_SQL },
   { version: 2, name: 'auth_sessions', up: AUTH_SQL },
   { version: 3, name: 'schedules', up: SCHEDULES_SQL },
+  { version: 4, name: 'notifications', up: NOTIFICATIONS_SQL },
 ];
 
 /**

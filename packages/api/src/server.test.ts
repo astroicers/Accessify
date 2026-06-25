@@ -152,4 +152,29 @@ describe('REST API（T502 / FR-206）', () => {
     expect(r.json().baselineScanId).toBeNull();
     expect((await app.inject({ method: 'GET', url: '/api/scans/9999/diff', headers: h })).statusCode).toBe(404);
   });
+
+  it('通知：本人範圍 + 未讀計數 + 標記已讀（T603）', async () => {
+    const { db, app, adminPw } = await setup();
+    const h = { authorization: `Bearer ${await login(app, 'admin', adminPw)}` };
+    const adminId = (db.prepare("SELECT id FROM users WHERE username='admin'").get() as { id: number }).id;
+    await createUser(db, { username: 'nv', password: 'pw', role: 'viewer', cost: 6 });
+    const vid = (db.prepare("SELECT id FROM users WHERE username='nv'").get() as { id: number }).id;
+    const vh = { authorization: `Bearer ${await login(app, 'nv', 'pw')}` };
+    db.prepare("INSERT INTO notifications (user_id, kind, message_key) VALUES (?, 'scan_completed', 'notifications.msgScanCompleted')").run(adminId);
+    const nid = Number(
+      db.prepare("INSERT INTO notifications (user_id, kind, message_key) VALUES (?, 'new_issues', 'notifications.msgNewIssues')").run(adminId).lastInsertRowid,
+    );
+    db.prepare("INSERT INTO notifications (user_id, kind, message_key) VALUES (?, 'scan_completed', 'notifications.msgScanCompleted')").run(vid);
+
+    expect((await app.inject({ method: 'GET', url: '/api/notifications', headers: h })).json().length).toBe(2);
+    expect((await app.inject({ method: 'GET', url: '/api/notifications/unread-count', headers: h })).json().count).toBe(2);
+    // viewer 只看到自己的；且不能標記他人通知（404）
+    expect((await app.inject({ method: 'GET', url: '/api/notifications', headers: vh })).json().length).toBe(1);
+    expect((await app.inject({ method: 'POST', url: `/api/notifications/${nid}/read`, headers: vh })).statusCode).toBe(404);
+    // 本人標記 → 未讀減少；read-all 清零
+    expect((await app.inject({ method: 'POST', url: `/api/notifications/${nid}/read`, headers: h })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/api/notifications/unread-count', headers: h })).json().count).toBe(1);
+    await app.inject({ method: 'POST', url: '/api/notifications/read-all', headers: h });
+    expect((await app.inject({ method: 'GET', url: '/api/notifications/unread-count', headers: h })).json().count).toBe(0);
+  });
 });

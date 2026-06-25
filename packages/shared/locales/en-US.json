@@ -41,6 +41,7 @@
     "dashboard": "Dashboard",
     "newScan": "New Scan",
     "schedules": "Schedules",
+    "notifications": "Notifications",
     "status": "Status",
     "settings": "Settings",
     "logout": "Log out"
@@ -151,5 +152,18 @@
     "unchanged": "Unchanged",
     "none": "No previous scan to compare",
     "note": "Selectors may shift across renders; the diff is a tracking aid, not a guarantee."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "markRead": "Mark read",
+    "markAllRead": "Mark all read",
+    "marked": "Marked as read",
+    "unread": "unread",
+    "viewScan": "View scan",
+    "msgScanCompleted": "Scan completed for {{target}}",
+    "msgScanFailed": "Scan failed for {{target}}",
+    "msgNewIssues": "{{count}} new issues on {{target}}",
+    "msgScheduledRescan": "Scheduled rescan started for {{target}}"
   }
 }

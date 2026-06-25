@@ -4,6 +4,48 @@ import type { Db } from './db.js';
 import { claimJob, completeJob, failJob } from './queue.js';
 import { setScanTaskStatus, writeAudit } from './lifecycle.js';
 import { runSchedulerTick } from './scheduler.js';
+import { notify } from './notifications.js';
+import { computeDiff } from './diff.js';
+
+// 掃描結束時對發起者（scan_task.created_by）建立站內通知（T603）。盡力而為、fault-isolated，
+// 通知失敗絕不影響 job 結果。created_by 為 null（如系統/測試）則略過。
+function notifyScanOutcome(db: Db, scanTaskId: number, outcome: 'completed' | 'failed'): void {
+  try {
+    const meta = db
+      .prepare('SELECT target, created_by AS createdBy FROM scan_tasks WHERE id = ?')
+      .get(scanTaskId) as { target: string; createdBy: number | null } | undefined;
+    if (!meta || meta.createdBy == null) return;
+    if (outcome === 'failed') {
+      notify(db, {
+        userId: meta.createdBy,
+        kind: 'scan_failed',
+        scanTaskId,
+        messageKey: 'notifications.msgScanFailed',
+        params: { target: meta.target },
+      });
+      return;
+    }
+    notify(db, {
+      userId: meta.createdBy,
+      kind: 'scan_completed',
+      scanTaskId,
+      messageKey: 'notifications.msgScanCompleted',
+      params: { target: meta.target },
+    });
+    const d = computeDiff(db, scanTaskId);
+    if (d.added.length > 0) {
+      notify(db, {
+        userId: meta.createdBy,
+        kind: 'new_issues',
+        scanTaskId,
+        messageKey: 'notifications.msgNewIssues',
+        params: { target: meta.target, count: d.added.length },
+      });
+    }
+  } catch {
+    // 通知為盡力而為，不影響 job 結果
+  }
+}
 
 export interface WorkerDeps {
   owner: string;
@@ -30,10 +72,14 @@ export async function processNextJob(db: Db, deps: WorkerDeps): Promise<ProcessR
     completeJob(db, job.id);
     setScanTaskStatus(db, job.scanTaskId, 'completed');
     writeAudit(db, { action: 'scan.completed', resource: `scan_task:${job.scanTaskId}` });
+    notifyScanOutcome(db, job.scanTaskId, 'completed');
     return { processed: true, jobId: job.id, ok: true };
   } catch (e) {
     const outcome = failJob(db, job.id, deps.maxAttempts ?? 3);
-    if (outcome === 'failed') setScanTaskStatus(db, job.scanTaskId, 'failed');
+    if (outcome === 'failed') {
+      setScanTaskStatus(db, job.scanTaskId, 'failed');
+      notifyScanOutcome(db, job.scanTaskId, 'failed');
+    }
     const error = e instanceof Error ? e.message : String(e);
     writeAudit(db, {
       action: `scan.${outcome}`,

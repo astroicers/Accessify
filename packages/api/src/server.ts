@@ -6,7 +6,16 @@ import { basename } from 'node:path';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import swagger from '@fastify/swagger';
-import { enqueueJob, writeAudit, computeDiff, type Db } from '@accessify/core';
+import {
+  enqueueJob,
+  writeAudit,
+  computeDiff,
+  listNotifications,
+  unreadCount,
+  markRead,
+  markAllRead,
+  type Db,
+} from '@accessify/core';
 import {
   authenticate,
   createSession,
@@ -377,6 +386,22 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     const r = db.prepare('DELETE FROM schedules WHERE id = ?').run(id);
     if (r.changes === 0) return reply.code(404).send({ code: 'not_found', messageKey: 'error.notFound' });
     writeAudit(db, { userId: req.user!.userId, action: 'schedule.delete', resource: `schedule:${id}` });
+    return { ok: true };
+  });
+
+  // ── 站內通知（T603 / FR-503）。一律 requireAuth；僅能存取「本人」的通知（user 範圍）。 ──
+  app.get('/api/notifications', { preHandler: requireAuth }, async (req) =>
+    listNotifications(db, req.user!.userId),
+  );
+  app.get('/api/notifications/unread-count', { preHandler: requireAuth }, async (req) => ({
+    count: unreadCount(db, req.user!.userId),
+  }));
+  app.post('/api/notifications/read-all', { preHandler: requireAuth }, async (req) => ({
+    updated: markAllRead(db, req.user!.userId),
+  }));
+  app.post('/api/notifications/:id/read', { preHandler: requireAuth }, async (req, reply) => {
+    const ok = markRead(db, Number((req.params as { id: string }).id), req.user!.userId);
+    if (!ok) return reply.code(404).send({ code: 'not_found', messageKey: 'error.notFound' });
     return { ok: true };
   });
 

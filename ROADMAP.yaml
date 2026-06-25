@@ -600,7 +600,7 @@ milestones:
   - id: M6
     title: "排程重掃與變更追蹤"
     target_date: 2026-09-23
-    status: pending
+    status: completed
     tasks:
       - id: T601
         title: "簡易排程器（週期重掃內網站台）"
@@ -652,7 +652,7 @@ milestones:
         spec: null
         srs_ref: FR-503
         depends_on: [T602]
-        status: pending
+        status: completed
         estimated_complexity: low
         source_type: manual
         source_ref: ""
@@ -661,6 +661,11 @@ milestones:
         imported_at: ""
         description: |
           掃描完成/差異產生時站內通知；內網 SMTP 為選用且預設關閉（無網際網路依賴）。
+          實作註：站內通知完成 — core migration v4 notifications 表 + notifications.ts（notify/list/unreadCount/
+          markRead/markAllRead，全 user-scoped）；訊息存 i18n key+params 顯示時渲染。觸發：掃描完成→通知發起者
+          （含新問題 count）、失敗→通知、排程觸發→通知建立者（皆 fault-isolated）。API（list/unread-count/:id/read/
+          read-all，requireAuth + 本人範圍）+ /notifications 頁 + 導覽未讀指示（文字+數字、aria-label、60s 輪詢）。
+          SMTP 外送刻意延後：屬新執行期相依 + 新出站路徑，依鐵則須先有 ADR（待 ADR-012），預設關閉、不影響站內通知。
 
   - id: M7
     title: "地端交付與穩定性"

@@ -6,6 +6,7 @@
 import type { Db } from './db.js';
 import { enqueueJob } from './queue.js';
 import { writeAudit } from './lifecycle.js';
+import { notify } from './notifications.js';
 
 export interface DueSchedule {
   id: number;
@@ -75,6 +76,21 @@ export function runSchedulerTick(db: Db, now: Date): SchedulerTickResult {
         resource: `schedule:${s.id}`,
         detail: `scan_task:${taskId}`,
       });
+      // 站內通知排程建立者（T603）；created_by 為 null（如測試）則略過。
+      // 包 try/catch：通知為盡力而為，絕不可因通知失敗 rollback 整個重掃觸發（否則會緊湊重觸發）。
+      if (s.createdBy != null) {
+        try {
+          notify(db, {
+            userId: s.createdBy,
+            kind: 'scheduled_rescan',
+            scanTaskId: taskId,
+            messageKey: 'notifications.msgScheduledRescan',
+            params: { target: s.target },
+          });
+        } catch {
+          // 通知盡力而為，不影響重掃觸發
+        }
+      }
       return 'fired';
     })();
     if (outcome === 'fired') fired.push(s.id);

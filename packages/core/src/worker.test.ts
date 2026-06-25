@@ -66,6 +66,19 @@ describe('worker processNextJob（T401/T402）', () => {
     const r2 = await processNextJob(db, { owner: 'w1', runJob: async () => {} });
     expect(r2.ok).toBe(true);
   });
+
+  it('完成掃描 → 對發起者建立站內通知（T603）', async () => {
+    const db = openDb(':memory:');
+    runMigrations(db);
+    db.prepare("INSERT INTO users (username, password_hash, role) VALUES ('u', 'x', 'admin')").run();
+    const taskId = Number(
+      db.prepare("INSERT INTO scan_tasks (target, type, status, created_by) VALUES ('https://a', 'url', 'queued', 1)").run().lastInsertRowid,
+    );
+    enqueueJob(db, taskId);
+    await processNextJob(db, { owner: 'w1', runJob: async () => {} });
+    const kinds = (db.prepare('SELECT kind FROM notifications WHERE user_id = 1').all() as { kind: string }[]).map((r) => r.kind);
+    expect(kinds).toContain('scan_completed');
+  });
 });
 
 describe('worker runWorker 排程整合（T601）', () => {

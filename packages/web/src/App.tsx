@@ -10,6 +10,7 @@ import { ScanResult } from './pages/ScanResult.js';
 import { Settings } from './pages/Settings.js';
 import { Status } from './pages/Status.js';
 import { Schedules } from './pages/Schedules.js';
+import { Notifications } from './pages/Notifications.js';
 import { Login } from './pages/Login.js';
 import { useAuth } from './store.js';
 import { useRoute } from './router.js';
@@ -17,6 +18,7 @@ import { useRoute } from './router.js';
 function renderRoute(route: string) {
   if (route === '/scans/new') return <CreateScan />;
   if (route === '/schedules') return <Schedules />;
+  if (route === '/notifications') return <Notifications />;
   if (route === '/settings') return <Settings />;
   if (route === '/status') return <Status />;
   const m = /^\/scans\/(\d+)$/.exec(route);

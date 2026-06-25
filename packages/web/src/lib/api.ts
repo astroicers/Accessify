@@ -94,6 +94,15 @@ export interface ScanDiff {
   added: DiffIssue[];
   unchanged: DiffIssue[];
 }
+export interface Notification {
+  id: number;
+  kind: string;
+  scan_task_id: number | null;
+  message_key: string;
+  params_json: string | null;
+  read: number;
+  created_at: string;
+}
 export interface ServerStatus {
   overall: 'healthy' | 'degraded' | 'down';
   uptimeSec: number;
@@ -132,4 +141,8 @@ export const api = {
   updateSchedule: (id: number, body: { enabled?: boolean; interval_seconds?: number }) =>
     request<{ ok: boolean }>('PUT', `/api/schedules/${id}`, body),
   deleteSchedule: (id: number) => request<{ ok: boolean }>('DELETE', `/api/schedules/${id}`),
+  listNotifications: () => request<Notification[]>('GET', '/api/notifications'),
+  unreadCount: () => request<{ count: number }>('GET', '/api/notifications/unread-count'),
+  markNotificationRead: (id: number) => request<{ ok: boolean }>('POST', `/api/notifications/${id}/read`),
+  markAllNotificationsRead: () => request<{ updated: number }>('POST', '/api/notifications/read-all'),
 };
