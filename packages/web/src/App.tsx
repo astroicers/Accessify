@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { useTranslation } from 'react-i18next';
 import './i18n.js';
@@ -6,12 +7,16 @@ import { PrimaryNav } from './components/PrimaryNav.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { CreateScan } from './pages/CreateScan.js';
 import { ScanResult } from './pages/ScanResult.js';
+import { Settings } from './pages/Settings.js';
+import { Status } from './pages/Status.js';
 import { Login } from './pages/Login.js';
 import { useAuth } from './store.js';
 import { useRoute } from './router.js';
 
 function renderRoute(route: string) {
   if (route === '/scans/new') return <CreateScan />;
+  if (route === '/settings') return <Settings />;
+  if (route === '/status') return <Status />;
   const m = /^\/scans\/(\d+)$/.exec(route);
   if (m) return <ScanResult id={Number(m[1])} />;
   return <Dashboard />;
@@ -38,6 +43,11 @@ function MustChangeBanner() {
 function Root() {
   const token = useAuth((s) => s.token);
   const route = useRoute();
+
+  // 換頁時把焦點移到 <main>，避免鍵盤焦點孤立、並讓螢幕報讀者察覺頁面切換（WCAG 2.4.3）。
+  useEffect(() => {
+    document.getElementById('main')?.focus();
+  }, [route, token]);
 
   if (!token) {
     return (

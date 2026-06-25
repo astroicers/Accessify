@@ -20,7 +20,7 @@ export function Layout({ children, nav }: { children: ReactNode; nav?: ReactNode
           <ThemeToggle />
         </nav>
       </header>
-      <main id="main" className="mx-auto max-w-5xl p-4">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-5xl p-4 focus:outline-none">
         {children}
       </main>
     </div>

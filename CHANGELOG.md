@@ -5,6 +5,14 @@
 ## [Unreleased]
 
 ### Added
+- **M5/T507**：本地健康/狀態頁（ADR-011 / FR-602）`@accessify/api` `GET /api/status`（viewer+，admin 超集）：純函式 `collectStatus`（與 HTTP 解耦、可測）彙整 queue（依 job state）、oldest queued age、worker 心跳延遲、過期租約、DB `quick_check` integrity + schema 版本、磁碟用量（`statfs` 派生 usedPct/free/total）、uptime、node/app 版本；衍生 `overall` healthy/degraded/down（內建閾值，站內呈現、零對外）。**僅輸出派生值，不洩漏絕對路徑/主機清單/密鑰**（ADR-008/009/011）。`@accessify/web` `/status` 頁（語意 `<dl>` 分組 + refresh）。
+- **M5/T505**：設定頁（ADR-006 / FR-601）`@accessify/web` `/settings`（admin only，非 admin 顯示 `error.forbidden`）：scan_whitelist 編輯（每行一主機、`role=status` 儲存回饋）。**強化 `PUT /api/settings`**：允許鍵白名單（防注入任意 settings 列）+ 主機格式驗證（拒 scheme/port/path/萬用字元/loopback/link-local；正規化儲存），稽核僅記鍵名不記值。誠實範圍：僅實作有 reader 的 scan_whitelist（出站白名單），不放無作用假設定（穩定優先）。**M5 本地 Web Portal 完成（T501–T507）**。
+- **a11y 實證（M5 累計）**：Playwright + axe-core 掃 production build，WCAG 2.1 AA tags 0 violations — Login/Dashboard/CreateScan/ScanResult + Settings/Status，zh-TW/en-US × light/dark 共 9 變體。
+- **對抗式 review 後強化（T505/T507）**：多代理人審查確認 23 項 finding，已修全部 HIGH/MEDIUM 與划算 LOW —
+  ① 換頁將焦點移至 `<main tabIndex=-1>`（WCAG 2.4.3，axe 無法偵測之 SPA 焦點孤立）；
+  ② Settings/Status 之 `role=alert`/`role=status` live region 改為**常駐 DOM 僅切換文字**（WCAG 4.1.3，避免條件掛載漏播）；
+  ③ Status uptime 文字補 `dark:` 對比（修深色 4.16:1 不達標）；④ Settings 初次載入失敗不渲染空表單、清空白名單需二次確認（防誤覆蓋 SSRF 白名單）；
+  ⑤ forbidden/error/loading 分支補 `<h1>`；⑥ overall 改 `dl`、PrimaryNav `aria-current`、textarea `aria-invalid`、`requireRole` 403 補 `return`、`collectStatus` 統一注入時鐘。
 - **M5/T504**：掃描 UI 主流程（ADR-005 / FR-404）`@accessify/web`：極簡 hash router（無外部相依，離線/穩定優先）+ 認證守衛 + 四頁面 — Login（含 mustChange 提醒橫幅）、Dashboard（掃描清單表格 + 狀態徽章）、CreateScan（admin、URL/sitemap、白名單錯誤回饋）、ScanResult（問題摘要 + 問題表 + 報表下載 + refresh）。新增 API `GET /api/reports/:id/download`（同源 httpOnly session cookie 授權、content-type/disposition、稽核）；前端以 `<a download>` 命中。i18n 雙語擴充 nav/login/scan/error 四區（key-diff 對齊）。**a11y 實證**：Playwright + axe-core 掃 production build，Login（zh-TW/en-US × light/dark）+ Dashboard/CreateScan/ScanResult（stub API、真實資料）共 6 變體 **0 WCAG 2.1 AA 違規**。`tsc -b`/`vite build`/lint 綠、87 unit tests green（+下載端點 200/404/401）。
 - **M5/T501**：前端 scaffold（ADR-005 / visual-web-stack 基礎層）`@accessify/web`：React 19 + Vite 6 + Tailwind v4 + react-i18next（共用 shared catalog，zh-TW/en-US，持久化偏好不被 Accept-Language 凌駕）+ next-themes + zustand；Layout（skip-link、語言/主題切換、可見 focus）、typed API client、reduced-motion 全域兜底。`vite build` production 綠（58 modules）、`tsc --noEmit` 綠。移除 3D/滾動層（自身 a11y/穩定）。
 - **M5/T502**：REST API（ADR-001 / FR-206）`@accessify/api` Fastify server：`/healthz`、`/api/openapi.json`（OpenAPI 契約）、auth login/logout（session cookie + Bearer）、scans 列表/建立(白名單+入列)/詳情/issues/reports、settings；session 中介層 + RBAC 守衛（admin/viewer）+ route schema 驗證 + 稽核。以 `fastify.inject` 測試（401/403/201/白名單）。

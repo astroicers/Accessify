@@ -83,4 +83,34 @@ describe('REST API（T502 / FR-206）', () => {
     expect((await app.inject({ method: 'GET', url: '/api/reports/9999/download', headers: h })).statusCode).toBe(404);
     expect((await app.inject({ method: 'GET', url: `/api/reports/${repId}/download` })).statusCode).toBe(401);
   });
+
+  it('狀態頁：未登入 401；viewer 可讀（200）且回傳派生指標（T507）', async () => {
+    const { db, app } = await setup();
+    expect((await app.inject({ method: 'GET', url: '/api/status' })).statusCode).toBe(401);
+    await createUser(db, { username: 'v2', password: 'pw', role: 'viewer', cost: 6 });
+    const token = await login(app, 'v2', 'pw');
+    const r = await app.inject({ method: 'GET', url: '/api/status', headers: { authorization: `Bearer ${token}` } });
+    expect(r.statusCode).toBe(200);
+    const body = r.json();
+    expect(['healthy', 'degraded', 'down']).toContain(body.overall);
+    expect(body.queue).toHaveProperty('queued');
+    expect(body.db.integrity).toBe('ok');
+    // 不得洩漏絕對路徑（disk 僅派生值）。
+    expect(JSON.stringify(body)).not.toMatch(/\/home\//);
+  });
+
+  it('設定：白名單格式驗證（合法 200、含 scheme/loopback 400）+ 未知鍵 400（T505）', async () => {
+    const { db, app, adminPw } = await setup();
+    const h = { authorization: `Bearer ${await login(app, 'admin', adminPw)}` };
+    // 合法：多主機正規化儲存
+    const okR = await app.inject({ method: 'PUT', url: '/api/settings', headers: h, payload: { scan_whitelist: 'intra.mil, portal.intra.mil' } });
+    expect(okR.statusCode).toBe(200);
+    expect((db.prepare("SELECT value FROM settings WHERE key='scan_whitelist'").get() as { value: string }).value).toBe('intra.mil,portal.intra.mil');
+    // 非法：scheme
+    expect((await app.inject({ method: 'PUT', url: '/api/settings', headers: h, payload: { scan_whitelist: 'https://intra.mil' } })).statusCode).toBe(400);
+    // 非法：loopback
+    expect((await app.inject({ method: 'PUT', url: '/api/settings', headers: h, payload: { scan_whitelist: '127.0.0.1' } })).statusCode).toBe(400);
+    // 非法：未知設定鍵（防注入）
+    expect((await app.inject({ method: 'PUT', url: '/api/settings', headers: h, payload: { evil_key: 'x' } })).statusCode).toBe(400);
+  });
 });

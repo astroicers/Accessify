@@ -69,6 +69,15 @@ export interface Issue {
   selector: string;
   message: string;
 }
+export interface ServerStatus {
+  overall: 'healthy' | 'degraded' | 'down';
+  uptimeSec: number;
+  queue: { queued: number; running: number; failed: number; completed: number; oldestQueuedAgeSec: number | null };
+  worker: { heartbeatStaleSec: number | null; staleLeases: number };
+  db: { integrity: 'ok' | 'fail'; schemaVersion: number };
+  disk: { usedPct: number; freeBytes: number; totalBytes: number } | null;
+  versions: { node: string; app: string; schema: number };
+}
 
 export const api = {
   login: (username: string, password: string) =>
@@ -88,4 +97,7 @@ export const api = {
       'GET',
       `/api/scans/${id}/reports`,
     ),
+  getStatus: () => request<ServerStatus>('GET', '/api/status'),
+  getSettings: () => request<Record<string, string>>('GET', '/api/settings'),
+  updateSettings: (body: Record<string, string>) => request<{ ok: boolean }>('PUT', '/api/settings', body),
 };

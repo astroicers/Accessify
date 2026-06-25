@@ -15,6 +15,7 @@ import {
   hasRole,
   type Role,
 } from './auth.js';
+import { collectStatus } from './status.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -25,13 +26,33 @@ declare module 'fastify' {
 export interface ServerDeps {
   db: Db;
   sessionTtlMs?: number;
+  /** 計算磁碟用量的資料目錄（僅供 statfs，不外洩路徑）。 */
+  dataDir?: string;
+  appVersion?: string;
 }
+
+/** 目前唯一被程式碼消費的設定鍵；PUT 僅接受此清單內的鍵（防注入任意 settings 列）。 */
+const ALLOWED_SETTINGS_KEYS = new Set(['scan_whitelist']);
 
 function getWhitelist(db: Db): string[] {
   const row = db.prepare("SELECT value FROM settings WHERE key = 'scan_whitelist'").get() as
     | { value: string }
     | undefined;
   return row ? row.value.split(',').map((s) => s.trim()).filter(Boolean) : [];
+}
+
+/**
+ * 白名單條目格式檢查（第一道閘）。只接受裸主機/網域或 IPv4；
+ * 禁 scheme/port/path/萬用字元/空白、以及 loopback/link-local（出站層一律封鎖，列入無意義）。
+ * 真正的 SSRF 邊界仍是掃描時的每請求 egress 強制（ADR-009），此處僅防呆與防注入。
+ */
+export function isValidWhitelistHost(raw: string): boolean {
+  const e = raw.trim().toLowerCase();
+  if (!e) return false;
+  if (/[\s/*@?#]/.test(e) || e.includes(':')) return false;
+  if (e === 'localhost' || e.endsWith('.localhost')) return false;
+  if (/^127\./.test(e) || e === '0.0.0.0' || /^169\.254\./.test(e)) return false;
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(e);
 }
 
 function isTargetAllowed(target: string, whitelist: string[]): boolean {
@@ -73,6 +94,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
       if (!req.user || !hasRole(req.user.role, role)) {
         await reply.code(403).send({ code: 'forbidden', messageKey: 'error.forbidden' });
+        return;
       }
     };
 
@@ -197,13 +219,37 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       .send(content);
   });
 
+  // 系統狀態（FR / ADR-011）。viewer 即可（admin 為超集）；僅派生值，不洩漏路徑/主機/密鑰。
+  app.get('/api/status', { preHandler: [requireAuth, requireRole('viewer')] }, async () =>
+    collectStatus(db, { dataDir: deps.dataDir, appVersion: deps.appVersion }),
+  );
+
   app.get('/api/settings', { preHandler: [requireAuth, requireRole('admin')] }, async () => {
     const rows = db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
     return Object.fromEntries(rows.map((r) => [r.key, r.value]));
   });
 
-  app.put('/api/settings', { preHandler: [requireAuth, requireRole('admin')] }, async (req) => {
-    const body = req.body as Record<string, unknown>;
+  app.put('/api/settings', { preHandler: [requireAuth, requireRole('admin')] }, async (req, reply) => {
+    const body = { ...((req.body as Record<string, unknown>) ?? {}) };
+    // 只接受已知鍵（防注入任意 settings 列）。
+    for (const k of Object.keys(body)) {
+      if (!ALLOWED_SETTINGS_KEYS.has(k)) {
+        return reply.code(400).send({ code: 'invalid_key', messageKey: 'error.unknown' });
+      }
+    }
+    // scan_whitelist：逐項驗證主機格式並正規化（trim）。出站層為最終 SSRF 邊界（ADR-009）。
+    const changed: string[] = [];
+    if ('scan_whitelist' in body) {
+      const hosts = String(body.scan_whitelist ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (hosts.some((h) => !isValidWhitelistHost(h))) {
+        return reply.code(400).send({ code: 'invalid_whitelist', messageKey: 'error.invalidWhitelist' });
+      }
+      body.scan_whitelist = hosts.join(',');
+      changed.push('scan_whitelist');
+    }
     const upsert = db.prepare(
       'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
     );
@@ -211,7 +257,8 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
       for (const [k, v] of entries) upsert.run(k, String(v));
     });
     apply(Object.entries(body));
-    writeAudit(db, { userId: req.user!.userId, action: 'settings.update' });
+    // 僅記錄變更的「鍵名」，不寫入任何值（避免敏感資訊入稽核）。
+    writeAudit(db, { userId: req.user!.userId, action: 'settings.update', detail: changed.join(',') || null });
     return { ok: true };
   });
 

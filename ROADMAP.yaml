@@ -461,7 +461,7 @@ milestones:
   - id: M5
     title: "本地 Web Portal"
     target_date: 2026-09-09
-    status: pending
+    status: completed
     tasks:
       - id: T501
         title: "前端 scaffold（visual-web-stack 基礎層 + i18n 切換 + next-themes + reduced-motion）"
@@ -545,7 +545,7 @@ milestones:
         spec: null
         srs_ref: FR-601
         depends_on: [T503]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -554,6 +554,9 @@ milestones:
         imported_at: ""
         description: |
           admin 設定白名單、速率、預設語言、排程預設、（選用）內網 SMTP；變更即時生效並入稽核。
+          實作註（誠實範圍）：目前唯一被程式碼消費的設定為 scan_whitelist（出站白名單），故 T505
+          聚焦白名單管理 + 強化 PUT /api/settings 驗證（允許鍵白名單 + 主機格式檢查，防注入/防 loopback）；
+          速率/預設語言/排程/SMTP 屬 M6/T705 範疇且尚無 reader，不放無作用的假設定（穩定優先/不過度設計）。
       - id: T506
         title: "首位 admin 離線 bootstrap"
         type: NEW_FEATURE
@@ -580,7 +583,7 @@ milestones:
         spec: null
         srs_ref: FR-602
         depends_on: [T502]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -590,6 +593,9 @@ milestones:
         description: |
           建立 /status 健康/狀態頁（worker 心跳、佇列積壓、最近失敗、磁碟用量、DB integrity、
           排程上次/下次、憑證到期天數），磁碟/憑證閾值站內告警（無外網）。
+          實作註：新增 GET /api/status（viewer+，純函式 collectStatus，僅派生值不洩漏路徑/密鑰）+ /status 頁
+          （overall healthy/degraded/down + queue/worker/db/disk/versions、refresh）。排程上次/下次與憑證到期
+          待 M6（T601 排程）/ TLS 佈建（T703/DEPLOY）就緒後再接；overall 已內建 degraded 閾值（站內呈現，零對外）。
 
   - id: M6
     title: "排程重掃與變更追蹤"
