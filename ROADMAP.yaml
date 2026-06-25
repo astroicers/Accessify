@@ -680,7 +680,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T004, T502]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -690,6 +690,15 @@ milestones:
         description: |
           撰寫 docker-compose（api + worker + volumes）、.env.example、容器 healthcheck；單機可起。
           worker 容器 init/shm/sandbox（ADR-009）、TZ=Asia/Taipei（ADR-010）。
+          實作註：補上先前缺漏的「生產 entrypoint」——新 packages/worker（makeRunJob 真實串接
+          scanner→mapping→report→core，sitemap 以 egress-checked resp.text() 取得；buildReports 冪等、可測）
+          + worker/main.ts（runWorker+排程+liveness 心跳）+ api/main.ts（openDb→migrate→ensureAdmin→listen，
+          含同容器靜態服務 web SPA[dep-free]、TLS、cookie 簽章金鑰；secrets 缺檔降級不崩潰）。
+          docker-compose（api+worker 共用 data/reports volume、no-new-privileges、api/worker healthcheck）+
+          .env.example + Dockerfile（啟用 Chromium、mkdir+chown 掛載點解 non-root EACCES）。
+          實證：in-proc e2e（真實 chromium 掃 fixture→8 issues→6 雙語報表含 181KB 中文 PDF，且重跑冪等不重複）。
+          現場/CI 步驟：docker build/save、compose up、TLS/secrets 由 install.sh 產生（T702）。SPA 以 dep-free
+          靜態服務（不引入 @fastify/static，免新增執行期相依）。base image @sha256 digest pin 留待交付建置。
       - id: T702
         title: "離線安裝包（docker save tar + 安裝/驗證腳本）+ smoke test"
         type: NEW_FEATURE

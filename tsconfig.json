@@ -6,6 +6,7 @@
     { "path": "packages/scanner" },
     { "path": "packages/mapping" },
     { "path": "packages/report" },
-    { "path": "packages/api" }
+    { "path": "packages/api" },
+    { "path": "packages/worker" }
   ]
 }

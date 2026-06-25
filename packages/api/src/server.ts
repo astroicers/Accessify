@@ -1,9 +1,14 @@
 // @accessify/api/server — REST API（T502 / FR-206 / ADR-001）
 // Fastify + session 中介層 + RBAC 守衛 + route schema（即契約）+ OpenAPI。DI 以利 inject 測試。
 
-import { readFileSync } from 'node:fs';
-import { basename } from 'node:path';
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import { readFileSync, existsSync, statSync } from 'node:fs';
+import { basename, extname, resolve } from 'node:path';
+import Fastify, {
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+  type FastifyServerOptions,
+} from 'fastify';
 import cookie from '@fastify/cookie';
 import swagger from '@fastify/swagger';
 import {
@@ -38,6 +43,12 @@ export interface ServerDeps {
   /** 計算磁碟用量的資料目錄（僅供 statfs，不外洩路徑）。 */
   dataDir?: string;
   appVersion?: string;
+  /** Cookie 簽章金鑰（ADR-008；由 entrypoint 自 0600 secrets 檔/env 注入，不入映像）。 */
+  cookieSecret?: string;
+  /** 內網 TLS（ADR-008）；提供則以 HTTPS 監聽，否則 HTTP（由前置反代/部署決定）。 */
+  https?: { key: string | Buffer; cert: string | Buffer };
+  /** 內建靜態服務 web SPA 的目錄（如映像內 packages/web/dist）；提供則同容器服務 Portal（DEPLOY_SPEC §1）。 */
+  webDir?: string;
 }
 
 /** 目前唯一被程式碼消費的設定鍵；PUT 僅接受此清單內的鍵（防注入任意 settings 列）。 */
@@ -46,6 +57,39 @@ const ALLOWED_SETTINGS_KEYS = new Set(['scan_whitelist']);
 // 排程間隔界線（ADR-010：不低於輪詢粒度，避免 enqueue 風暴；上限 1 年）。
 const MIN_INTERVAL_SECONDS = 300;
 const MAX_INTERVAL_SECONDS = 31_536_000;
+
+const STATIC_MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.map': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+};
+
+/**
+ * 同容器服務 web SPA：以 setNotFoundHandler 處理所有非 /api、非 /healthz 的 GET。
+ * 路徑安全：resolve 後須仍在 webDir 內；命中實體檔則回該檔，否則回 index.html（SPA fallback）。
+ */
+function registerStatic(app: FastifyInstance, webDir: string): void {
+  const indexHtml = resolve(webDir, 'index.html');
+  app.setNotFoundHandler((req, reply) => {
+    if (req.method !== 'GET' || req.url.startsWith('/api') || req.url === '/healthz') {
+      void reply.code(404).send({ code: 'not_found', messageKey: 'error.notFound' });
+      return;
+    }
+    const urlPath = (req.url.split('?')[0] ?? '/').replace(/^\/+/, '');
+    const candidate = resolve(webDir, urlPath || 'index.html');
+    const safe = candidate === webDir || candidate.startsWith(webDir + '/');
+    const file =
+      safe && existsSync(candidate) && statSync(candidate).isFile() ? candidate : indexHtml;
+    void reply.type(STATIC_MIME[extname(file)] ?? 'application/octet-stream').send(readFileSync(file));
+  });
+}
 
 function getWhitelist(db: Db): string[] {
   const row = db.prepare("SELECT value FROM settings WHERE key = 'scan_whitelist'").get() as
@@ -79,8 +123,12 @@ function isTargetAllowed(target: string, whitelist: string[]): boolean {
 
 export function buildServer(deps: ServerDeps): FastifyInstance {
   const { db } = deps;
-  const app = Fastify({ logger: false });
-  void app.register(cookie);
+  // https 於執行期附掛（保持 instance 為預設 HTTP/1 型別，避免 http2-secure 推斷污染所有 handler 型別）。
+  const serverOpts: FastifyServerOptions = { logger: false };
+  if (deps.https) (serverOpts as FastifyServerOptions & { https: unknown }).https = deps.https;
+  const app = Fastify(serverOpts);
+  // Cookie 簽章金鑰（ADR-008）；未提供時退回未簽章（session 以 DB token 驗證仍安全，測試用）。
+  void app.register(cookie, deps.cookieSecret ? { secret: deps.cookieSecret } : {});
   void app.register(swagger, {
     openapi: { info: { title: 'Accessify API', version: '0.1.0' } },
   });
@@ -388,6 +436,11 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     writeAudit(db, { userId: req.user!.userId, action: 'schedule.delete', resource: `schedule:${id}` });
     return { ok: true };
   });
+
+  // 同容器靜態服務 web SPA（DEPLOY_SPEC §1；dep-free、path-safe）。/api 與 /healthz 維持原行為。
+  if (deps.webDir) {
+    registerStatic(app, resolve(deps.webDir));
+  }
 
   // ── 站內通知（T603 / FR-503）。一律 requireAuth；僅能存取「本人」的通知（user 範圍）。 ──
   app.get('/api/notifications', { preHandler: requireAuth }, async (req) =>

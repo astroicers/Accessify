@@ -12,6 +12,7 @@ export default defineConfig({
       '@accessify/scanner': resolveSrc('./packages/scanner/src/index.ts'),
       '@accessify/mapping': resolveSrc('./packages/mapping/src/index.ts'),
       '@accessify/report': resolveSrc('./packages/report/src/index.ts'),
+      '@accessify/worker': resolveSrc('./packages/worker/src/index.ts'),
     },
   },
   test: {

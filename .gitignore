@@ -50,6 +50,9 @@ vendor-offline/
 .env.local
 .env.*.local
 
+# ── 機密（install.sh 於現場產生：TLS 金鑰、cookie 簽章金鑰；0600，絕不進版控）──
+/secrets/
+
 # ── 雜項 ──
 .DS_Store
 *.log

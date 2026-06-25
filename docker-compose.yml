@@ -1,0 +1,89 @@
+# Accessify 單機部署（T701 / ADR-002 地端離線、ADR-003 SQLite 雙寫、ADR-009 Chromium 容器安全）
+# api 與 worker 共用同一映像與 data/reports volume（WAL 多讀單寫，busy_timeout 化解瞬間鎖）。
+# 執行期零對外：對外請求僅限掃描，且受 scan_whitelist + egress 政策把關。
+# 機密（TLS 金鑰、cookie 簽章金鑰）由 0600 secrets 檔注入，絕不寫入映像或本檔。
+
+services:
+  api:
+    image: accessify:${ACCESSIFY_TAG:-local}
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    env_file: [.env]
+    environment:
+      ACCESSIFY_DB_PATH: /data/accessify.db
+      # api 以絕對路徑讀 reports（worker 寫入同一路徑）→ 兩容器必須掛同一路徑。
+      ACCESSIFY_REPORTS_DIR: /reports
+      # 同容器服務 web SPA（DEPLOY_SPEC §1）。
+      ACCESSIFY_WEB_DIR: /app/packages/web/dist
+      COOKIE_SECRET_FILE: /run/secrets/cookie_secret
+      TLS_CERT_PATH: /run/secrets/tls_cert.pem
+      TLS_KEY_PATH: /run/secrets/tls_key.pem
+    command: ["node", "packages/api/dist/main.js"]
+    ports:
+      - "${APP_PORT:-8443}:8443"
+    volumes:
+      - data:/data
+      - reports:/reports
+      - ./secrets:/run/secrets:ro
+    healthcheck:
+      # TLS 自簽 → rejectUnauthorized:false；無 TLS 時走 http。
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const tls=process.env.TLS_CERT_PATH;const m=tls?require('https'):require('http');
+          m.get({host:'127.0.0.1',port:8443,path:'/healthz',rejectUnauthorized:false},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    image: accessify:${ACCESSIFY_TAG:-local}
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      ACCESSIFY_DB_PATH: /data/accessify.db
+      ACCESSIFY_REPORTS_DIR: /reports
+    command: ["node", "packages/worker/dist/main.js"]
+    security_opt:
+      - no-new-privileges:true
+    # Chromium 容器安全（ADR-009）：tini 收殭屍（映像 ENTRYPOINT 已含；init 為雙保險）、足夠 /dev/shm。
+    init: true
+    shm_size: "1gb"
+    volumes:
+      - data:/data
+      - reports:/reports
+    # 無對外埠；不可從外部直連 worker。
+    healthcheck:
+      # liveness：worker 每 30s 更新 /data/worker.heartbeat；逾 120s 未更新視為不健康。
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const fs=require('fs');try{const t=Number(fs.readFileSync('/data/worker.heartbeat','utf8'));
+          process.exit(Date.now()-t<120000?0:1)}catch{process.exit(1)}
+      interval: 30s
+      timeout: 5s
+      retries: 4
+      start_period: 20s
+
+  # 選用：基準站台 sidecar，供部署驗收 e2e（將 SCAN_WHITELIST 設為 'fixtures'；loopback 受 egress 永久封鎖，
+  # 故 e2e 需以非 loopback 主機名提供 fixture）。正式部署可移除。
+  # fixtures:
+  #   image: accessify:${ACCESSIFY_TAG:-local}
+  #   command: ["node", "scripts/serve-fixtures.mjs"]
+  #   expose: ["8080"]
+
+volumes:
+  data:
+  reports:

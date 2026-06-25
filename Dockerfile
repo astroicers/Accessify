@@ -33,8 +33,9 @@ COPY package.json package-lock.json ./
 COPY packages ./packages
 # npm ci 嚴格依 lockfile；正式離線建置改 `npm ci --offline`（需先 vendor cache，見 scripts/vendor-offline.sh）。
 RUN npm ci
-# Chromium（Playwright）— M1/T101 將 playwright 加入 scanner 相依後解除註解：
-# RUN npx playwright install chromium
+# Chromium（Playwright）：scanner/report/worker 執行期相依。於「有網建置環境」抓取並 pin revision；
+# OS 函式庫已於 base 裝齊，故此處只取瀏覽器二進位（執行期零對外，ADR-002/009）。
+RUN npx playwright install chromium
 
 # ---- build：TypeScript 編譯 ----
 FROM deps AS build
@@ -48,6 +49,9 @@ COPY --from=deps /app/node_modules /app/node_modules
 COPY --from=deps /ms-playwright /ms-playwright
 COPY --from=build /app/packages /app/packages
 COPY package.json ./
+# 預建並 chown data/reports 掛載點：Docker 初始化空 named volume 時會沿用映像內該目錄的擁有者，
+# 故非 root（uid 10001）首啟即可寫入 SQLite(WAL) 與報表（否則 root:root 空 volume → EACCES）。
+RUN mkdir -p /data /reports && chown accessify:accessify /data /reports
 USER accessify
 # 實際 api / worker 的啟動指令由 docker-compose（T701）指定；此處僅提供 reaping entrypoint。
 ENTRYPOINT ["tini", "--"]
