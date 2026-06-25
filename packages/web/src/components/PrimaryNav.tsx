@@ -30,6 +30,11 @@ export function PrimaryNav() {
           {t('nav.newScan')}
         </a>
       )}
+      {role === 'admin' && (
+        <a href="#/schedules" aria-current={current('/schedules')} className="text-sm hover:underline aria-[current=page]:font-semibold aria-[current=page]:underline">
+          {t('nav.schedules')}
+        </a>
+      )}
       <a href="#/status" aria-current={current('/status')} className="text-sm hover:underline aria-[current=page]:font-semibold aria-[current=page]:underline">
         {t('nav.status')}
       </a>

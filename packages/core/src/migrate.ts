@@ -110,9 +110,27 @@ CREATE TABLE sessions (
 CREATE INDEX idx_sessions_token ON sessions (token_hash);
 `;
 
+// 0003：排程重掃（T601 / ADR-010）。相對間隔（秒），時間皆存 ISO-8601 UTC TEXT。expand-contract，僅新增。
+const SCHEDULES_SQL = `
+CREATE TABLE schedules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('url','sitemap')),
+  interval_seconds INTEGER NOT NULL CHECK (interval_seconds > 0),
+  enabled INTEGER NOT NULL DEFAULT 1,
+  last_run_at TEXT,
+  next_run_at TEXT,
+  created_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX idx_schedules_target ON schedules (target);
+CREATE INDEX idx_schedules_due ON schedules (enabled, next_run_at);
+`;
+
 export const MIGRATIONS: Migration[] = [
   { version: 1, name: 'init', up: INIT_SQL },
   { version: 2, name: 'auth_sessions', up: AUTH_SQL },
+  { version: 3, name: 'schedules', up: SCHEDULES_SQL },
 ];
 
 /**

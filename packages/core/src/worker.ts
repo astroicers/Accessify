@@ -3,6 +3,7 @@
 import type { Db } from './db.js';
 import { claimJob, completeJob, failJob } from './queue.js';
 import { setScanTaskStatus, writeAudit } from './lifecycle.js';
+import { runSchedulerTick } from './scheduler.js';
 
 export interface WorkerDeps {
   owner: string;
@@ -47,9 +48,20 @@ export async function processNextJob(db: Db, deps: WorkerDeps): Promise<ProcessR
 export async function runWorker(
   db: Db,
   deps: WorkerDeps,
-  opts: { pollMs?: number; shouldStop: () => boolean },
+  opts: { pollMs?: number; schedulerTickMs?: number; shouldStop: () => boolean },
 ): Promise<void> {
+  // 排程 tick 與 job 處理共用同一單一程序（ADR-010：不另開程序/不依 node-cron）。
+  const schedulerTickMs = opts.schedulerTickMs ?? 60_000;
+  let nextSchedulerAt = 0;
   while (!opts.shouldStop()) {
+    if (schedulerTickMs > 0 && Date.now() >= nextSchedulerAt) {
+      try {
+        runSchedulerTick(db, new Date());
+      } catch {
+        // 隔離排程錯誤，不影響 job 處理迴圈
+      }
+      nextSchedulerAt = Date.now() + schedulerTickMs;
+    }
     const result = await processNextJob(db, deps);
     if (!result.processed) {
       await new Promise((resolve) => setTimeout(resolve, opts.pollMs ?? 1000));

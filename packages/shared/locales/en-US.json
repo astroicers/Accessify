@@ -40,6 +40,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "newScan": "New Scan",
+    "schedules": "Schedules",
     "status": "Status",
     "settings": "Settings",
     "logout": "Log out"
@@ -85,6 +86,8 @@
     "notWhitelisted": "Target is not whitelisted; add it on the Settings page",
     "login": "Invalid username or password",
     "invalidWhitelist": "Whitelist contains an invalid or disallowed host",
+    "invalidInterval": "Invalid interval (minimum 300 seconds)",
+    "scheduleExists": "A schedule already exists for this target",
     "unknown": "An unexpected error occurred"
   },
   "settings": {
@@ -124,5 +127,29 @@
     "never": "None",
     "seconds": "s",
     "gb": "GB"
+  },
+  "schedule": {
+    "listTitle": "Scheduled Rescans",
+    "subtitle": "Periodically rescan intranet sites (relative interval, container TZ Asia/Taipei)",
+    "create": "Add Schedule",
+    "interval": "Rescan Interval",
+    "intervalHourly": "Hourly",
+    "intervalDaily": "Daily",
+    "intervalWeekly": "Weekly",
+    "enabled": "Enabled",
+    "nextRun": "Next run",
+    "noSchedules": "No schedules yet",
+    "add": "Add",
+    "remove": "Remove",
+    "enable": "Enable",
+    "disable": "Disable"
+  },
+  "diff": {
+    "title": "Compared to Previous",
+    "fixed": "Fixed",
+    "added": "New",
+    "unchanged": "Unchanged",
+    "none": "No previous scan to compare",
+    "note": "Selectors may shift across renders; the diff is a tracking aid, not a guarantee."
   }
 }

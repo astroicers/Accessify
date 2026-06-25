@@ -69,6 +69,31 @@ export interface Issue {
   selector: string;
   message: string;
 }
+export interface Schedule {
+  id: number;
+  target: string;
+  type: 'url' | 'sitemap';
+  interval_seconds: number;
+  enabled: number;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string;
+}
+export interface DiffIssue {
+  pageUrl: string;
+  wcagRef: string | null;
+  ruleCode: string;
+  severity: string;
+  selector: string | null;
+  message: string | null;
+}
+export interface ScanDiff {
+  scanTaskId: number;
+  baselineScanId: number | null;
+  fixed: DiffIssue[];
+  added: DiffIssue[];
+  unchanged: DiffIssue[];
+}
 export interface ServerStatus {
   overall: 'healthy' | 'degraded' | 'down';
   uptimeSec: number;
@@ -100,4 +125,11 @@ export const api = {
   getStatus: () => request<ServerStatus>('GET', '/api/status'),
   getSettings: () => request<Record<string, string>>('GET', '/api/settings'),
   updateSettings: (body: Record<string, string>) => request<{ ok: boolean }>('PUT', '/api/settings', body),
+  getDiff: (id: number) => request<ScanDiff>('GET', `/api/scans/${id}/diff`),
+  listSchedules: () => request<Schedule[]>('GET', '/api/schedules'),
+  createSchedule: (body: { target: string; type: 'url' | 'sitemap'; interval_seconds: number }) =>
+    request<{ id: number }>('POST', '/api/schedules', body),
+  updateSchedule: (id: number, body: { enabled?: boolean; interval_seconds?: number }) =>
+    request<{ ok: boolean }>('PUT', `/api/schedules/${id}`, body),
+  deleteSchedule: (id: number) => request<{ ok: boolean }>('DELETE', `/api/schedules/${id}`),
 };

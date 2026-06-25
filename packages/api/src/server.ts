@@ -6,7 +6,7 @@ import { basename } from 'node:path';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import swagger from '@fastify/swagger';
-import { enqueueJob, writeAudit, type Db } from '@accessify/core';
+import { enqueueJob, writeAudit, computeDiff, type Db } from '@accessify/core';
 import {
   authenticate,
   createSession,
@@ -33,6 +33,10 @@ export interface ServerDeps {
 
 /** 目前唯一被程式碼消費的設定鍵；PUT 僅接受此清單內的鍵（防注入任意 settings 列）。 */
 const ALLOWED_SETTINGS_KEYS = new Set(['scan_whitelist']);
+
+// 排程間隔界線（ADR-010：不低於輪詢粒度，避免 enqueue 風暴；上限 1 年）。
+const MIN_INTERVAL_SECONDS = 300;
+const MAX_INTERVAL_SECONDS = 31_536_000;
 
 function getWhitelist(db: Db): string[] {
   const row = db.prepare("SELECT value FROM settings WHERE key = 'scan_whitelist'").get() as
@@ -193,6 +197,15 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     return db.prepare('SELECT id, lang, format, created_at FROM reports WHERE scan_task_id = ? ORDER BY id').all(id);
   });
 
+  // 掃描差異（FR-502）：與同 target 前次 completed 掃描比對；baseline 由後端決定，不接受呼叫端指定（防跨 target 列舉）。
+  app.get('/api/scans/:id/diff', { preHandler: requireAuth }, async (req, reply) => {
+    const id = Number((req.params as { id: string }).id);
+    if (!db.prepare('SELECT 1 FROM scan_tasks WHERE id = ?').get(id)) {
+      return reply.code(404).send({ code: 'not_found', messageKey: 'error.notFound' });
+    }
+    return computeDiff(db, id);
+  });
+
   const REPORT_MIME: Record<string, string> = {
     html: 'text/html; charset=utf-8',
     pdf: 'application/pdf',
@@ -259,6 +272,111 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     apply(Object.entries(body));
     // 僅記錄變更的「鍵名」，不寫入任何值（避免敏感資訊入稽核）。
     writeAudit(db, { userId: req.user!.userId, action: 'settings.update', detail: changed.join(',') || null });
+    return { ok: true };
+  });
+
+  // ── 排程重掃（T601 / FR-501 / ADR-010）。列表 viewer 可讀；新增/修改/刪除限 admin。 ──
+  app.get('/api/schedules', { preHandler: requireAuth }, async () =>
+    db
+      .prepare(
+        'SELECT id, target, type, interval_seconds, enabled, last_run_at, next_run_at, created_at FROM schedules ORDER BY id',
+      )
+      .all(),
+  );
+
+  app.post(
+    '/api/schedules',
+    {
+      preHandler: [requireAuth, requireRole('admin')],
+      schema: {
+        body: {
+          type: 'object',
+          required: ['target', 'type', 'interval_seconds'],
+          properties: {
+            target: { type: 'string', minLength: 1 },
+            type: { type: 'string', enum: ['url', 'sitemap'] },
+            interval_seconds: { type: 'integer' },
+            enabled: { type: 'boolean' },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const { target, type, interval_seconds, enabled } = req.body as {
+        target: string;
+        type: 'url' | 'sitemap';
+        interval_seconds: number;
+        enabled?: boolean;
+      };
+      if (interval_seconds < MIN_INTERVAL_SECONDS || interval_seconds > MAX_INTERVAL_SECONDS) {
+        return reply.code(400).send({ code: 'invalid_interval', messageKey: 'error.invalidInterval' });
+      }
+      if (!isTargetAllowed(target, getWhitelist(db))) {
+        return reply.code(400).send({ code: 'not_whitelisted', messageKey: 'error.notWhitelisted' });
+      }
+      const nextRun = new Date(Date.now() + interval_seconds * 1000).toISOString();
+      let id: number;
+      try {
+        id = Number(
+          db
+            .prepare(
+              'INSERT INTO schedules (target, type, interval_seconds, enabled, next_run_at, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+            )
+            .run(target, type, interval_seconds, enabled === false ? 0 : 1, nextRun, req.user!.userId)
+            .lastInsertRowid,
+        );
+      } catch (e) {
+        if ((e as { code?: string }).code === 'SQLITE_CONSTRAINT_UNIQUE') {
+          return reply.code(409).send({ code: 'schedule_exists', messageKey: 'error.scheduleExists' });
+        }
+        throw e;
+      }
+      writeAudit(db, { userId: req.user!.userId, action: 'schedule.create', resource: `schedule:${id}` });
+      return reply.code(201).send({ id });
+    },
+  );
+
+  app.put(
+    '/api/schedules/:id',
+    {
+      preHandler: [requireAuth, requireRole('admin')],
+      schema: {
+        body: {
+          type: 'object',
+          properties: { enabled: { type: 'boolean' }, interval_seconds: { type: 'integer' } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const id = Number((req.params as { id: string }).id);
+      if (!db.prepare('SELECT 1 FROM schedules WHERE id = ?').get(id)) {
+        return reply.code(404).send({ code: 'not_found', messageKey: 'error.notFound' });
+      }
+      const body = req.body as { enabled?: boolean; interval_seconds?: number };
+      if (body.interval_seconds !== undefined) {
+        if (body.interval_seconds < MIN_INTERVAL_SECONDS || body.interval_seconds > MAX_INTERVAL_SECONDS) {
+          return reply.code(400).send({ code: 'invalid_interval', messageKey: 'error.invalidInterval' });
+        }
+        const nextRun = new Date(Date.now() + body.interval_seconds * 1000).toISOString();
+        db.prepare('UPDATE schedules SET interval_seconds = ?, next_run_at = ? WHERE id = ?').run(
+          body.interval_seconds,
+          nextRun,
+          id,
+        );
+      }
+      if (body.enabled !== undefined) {
+        db.prepare('UPDATE schedules SET enabled = ? WHERE id = ?').run(body.enabled ? 1 : 0, id);
+      }
+      writeAudit(db, { userId: req.user!.userId, action: 'schedule.update', resource: `schedule:${id}` });
+      return { ok: true };
+    },
+  );
+
+  app.delete('/api/schedules/:id', { preHandler: [requireAuth, requireRole('admin')] }, async (req, reply) => {
+    const id = Number((req.params as { id: string }).id);
+    const r = db.prepare('DELETE FROM schedules WHERE id = ?').run(id);
+    if (r.changes === 0) return reply.code(404).send({ code: 'not_found', messageKey: 'error.notFound' });
+    writeAudit(db, { userId: req.user!.userId, action: 'schedule.delete', resource: `schedule:${id}` });
     return { ok: true };
   });
 

@@ -610,7 +610,7 @@ milestones:
         spec: null
         srs_ref: FR-501
         depends_on: [T502, T505]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -620,6 +620,10 @@ milestones:
         description: |
           以 DB 驅動輪詢實作週期排程，依設定觸發內網站台重掃（不依賴外網時鐘服務）。
           採相對間隔、TZ=Asia/Taipei（依 ADR-010）。
+          實作註：core/scheduler.ts（dueSchedules/runSchedulerTick，純函式、注入時鐘、julianday 數值比較避免
+          格式陷阱、原子認領防重複觸發、同 target 進行中即跳過防風暴、無 catch-up）；next_run_at 為到期唯一真相
+          並對齊 idx_schedules_due。排程 tick 內嵌既有單一 worker 迴圈（不另開程序/不用 node-cron，ADR-010），
+          長駐入口於 M7 佈建接上。schedules CRUD（admin、間隔界線 300s–1y、白名單檢查、唯一 target）+ /schedules 頁。
       - id: T602
         title: "掃描差異比對（已修復/新增/未改）"
         type: NEW_FEATURE
@@ -628,7 +632,7 @@ milestones:
         spec: null
         srs_ref: FR-502
         depends_on: [T601, T202]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -637,6 +641,9 @@ milestones:
         imported_at: ""
         description: |
           將本次掃描與上次比對，分類問題為已修復/新增/未改，呈現於結果與報表（供追蹤）。
+          實作註：core/diff.ts computeDiff（穩定 key = 頁面 URL+WCAG+規則碼+selector，以 JSON.stringify 串接；
+          baseline = 同 target 前次 completed）；GET /api/scans/:id/diff（requireAuth，baseline 由後端決定防跨 target
+          列舉）+ ScanResult 差異區塊（fixed/added/unchanged 計數 + 誠實標示 selector 可能不穩）。報表內嵌差異於後續迭代。
       - id: T603
         title: "站內通知 + 選用內網 SMTP（預設關閉）"
         type: NEW_FEATURE

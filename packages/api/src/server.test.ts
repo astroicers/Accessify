@@ -113,4 +113,43 @@ describe('REST API（T502 / FR-206）', () => {
     // 非法：未知設定鍵（防注入）
     expect((await app.inject({ method: 'PUT', url: '/api/settings', headers: h, payload: { evil_key: 'x' } })).statusCode).toBe(400);
   });
+
+  it('排程：建立/間隔界線/白名單/唯一/RBAC/停用/刪除（T601）', async () => {
+    const { db, app, adminPw } = await setup();
+    const h = { authorization: `Bearer ${await login(app, 'admin', adminPw)}` };
+    await createUser(db, { username: 'sv', password: 'pw', role: 'viewer', cost: 6 });
+    const vh = { authorization: `Bearer ${await login(app, 'sv', 'pw')}` };
+    // viewer 不能建立
+    expect(
+      (await app.inject({ method: 'POST', url: '/api/schedules', headers: vh, payload: { target: 'https://intra.mil/', type: 'url', interval_seconds: 3600 } })).statusCode,
+    ).toBe(403);
+    // 合法建立
+    const ok = await app.inject({ method: 'POST', url: '/api/schedules', headers: h, payload: { target: 'https://intra.mil/', type: 'url', interval_seconds: 3600 } });
+    expect(ok.statusCode).toBe(201);
+    const id = ok.json().id as number;
+    // 間隔過短 400
+    expect((await app.inject({ method: 'POST', url: '/api/schedules', headers: h, payload: { target: 'https://intra.mil/a', type: 'url', interval_seconds: 5 } })).statusCode).toBe(400);
+    // 非白名單 400
+    expect((await app.inject({ method: 'POST', url: '/api/schedules', headers: h, payload: { target: 'https://evil.example/', type: 'url', interval_seconds: 3600 } })).statusCode).toBe(400);
+    // 重複 target 409
+    expect((await app.inject({ method: 'POST', url: '/api/schedules', headers: h, payload: { target: 'https://intra.mil/', type: 'url', interval_seconds: 7200 } })).statusCode).toBe(409);
+    // 列表 / 停用 / 刪除
+    expect((await app.inject({ method: 'GET', url: '/api/schedules', headers: h })).json().length).toBe(1);
+    expect((await app.inject({ method: 'PUT', url: `/api/schedules/${id}`, headers: h, payload: { enabled: false } })).statusCode).toBe(200);
+    expect((db.prepare('SELECT enabled FROM schedules WHERE id=?').get(id) as { enabled: number }).enabled).toBe(0);
+    expect((await app.inject({ method: 'DELETE', url: `/api/schedules/${id}`, headers: h })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/api/schedules', headers: h })).json().length).toBe(0);
+  });
+
+  it('掃描差異端點：200 + baseline 分類；不存在 404（T602）', async () => {
+    const { db, app, adminPw } = await setup();
+    const h = { authorization: `Bearer ${await login(app, 'admin', adminPw)}` };
+    const id = Number(
+      db.prepare("INSERT INTO scan_tasks (target, type, status, created_by) VALUES ('https://intra.mil/','url','completed',1)").run().lastInsertRowid,
+    );
+    const r = await app.inject({ method: 'GET', url: `/api/scans/${id}/diff`, headers: h });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().baselineScanId).toBeNull();
+    expect((await app.inject({ method: 'GET', url: '/api/scans/9999/diff', headers: h })).statusCode).toBe(404);
+  });
 });

@@ -7,6 +7,7 @@ import {
   type Issue,
   type IssueCount,
   type ScanTask,
+  type ScanDiff,
 } from '../lib/api.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 
@@ -22,15 +23,17 @@ export function ScanResult({ id }: { id: number }) {
   const [task, setTask] = useState<(ScanTask & { issueCounts: IssueCount[] }) | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [diff, setDiff] = useState<ScanDiff | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setError(null);
-    Promise.all([api.getScan(id), api.getIssues(id), api.getReports(id)])
-      .then(([scan, iss, rep]) => {
+    Promise.all([api.getScan(id), api.getIssues(id), api.getReports(id), api.getDiff(id)])
+      .then(([scan, iss, rep, d]) => {
         setTask(scan);
         setIssues(iss);
         setReports(rep as Report[]);
+        setDiff(d);
       })
       .catch((err) => setError(err instanceof ApiError ? err.messageKey : 'error.unknown'));
   }, [id]);
@@ -89,6 +92,30 @@ export function ScanResult({ id }: { id: number }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {diff && (
+        <div>
+          <h2 className="text-lg font-semibold">{t('diff.title')}</h2>
+          {diff.baselineScanId == null ? (
+            <p className="mt-2 text-gray-600 dark:text-gray-400">{t('diff.none')}</p>
+          ) : (
+            <>
+              <ul className="mt-2 flex flex-wrap gap-2" aria-label={t('diff.title')}>
+                <li className="rounded bg-green-100 px-2 py-1 text-sm dark:bg-green-900">
+                  {t('diff.fixed')}: <strong>{diff.fixed.length}</strong>
+                </li>
+                <li className="rounded bg-red-100 px-2 py-1 text-sm dark:bg-red-900">
+                  {t('diff.added')}: <strong>{diff.added.length}</strong>
+                </li>
+                <li className="rounded bg-gray-100 px-2 py-1 text-sm dark:bg-gray-800">
+                  {t('diff.unchanged')}: <strong>{diff.unchanged.length}</strong>
+                </li>
+              </ul>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t('diff.note')}</p>
+            </>
+          )}
+        </div>
       )}
 
       <div>
