@@ -7,7 +7,8 @@ import i18next from 'eslint-plugin-i18next';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/*.d.ts'],
+    // scripts/ 為維運 Node/Bash 腳本（非 TS 應用層）；以 shellcheck（.sh）與 node --check（.mjs）驗證。
+    ignores: ['**/dist/**', '**/node_modules/**', '**/*.d.ts', 'scripts/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

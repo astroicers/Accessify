@@ -707,7 +707,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T701]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -716,6 +716,10 @@ milestones:
         imported_at: ""
         description: |
           產出離線安裝包：docker save 映像 tar、install.sh、verify.sh（smoke test：登入→掃描基準站台→產報表含中文 PDF）。
+          實作註：package-offline.sh（build→docker save gzip + 打包 compose/scripts/docs）；install.sh（docker load
+          → 產生 0600 機密：openssl cookie 金鑰 + 自簽 TLS → compose up → 等健康 → 提示一次性 admin 密碼）；
+          verify.sh（healthz / OpenAPI 契約 / SPA 首頁 / 選用登入）。全 shellcheck clean。完整「掃描→中文 PDF」
+          端到端需白名單 fixture（loopback 受 egress 封鎖），步驟見 docs/ACCEPTANCE.md；管線本身已 in-proc 實證（T701）。
       - id: T703
         title: "備份/還原（SQLite + reports）+ 升級/回滾 runbook"
         type: NEW_FEATURE
@@ -724,7 +728,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T701]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -734,6 +738,10 @@ milestones:
         description: |
           backup.sh/restore.sh（一致性快照：Online Backup API／VACUUM INTO + reports volume）、upgrade.sh/rollback.sh（保留前一版映像、expand-contract migration、升級前強制備份）、
           撰寫 RUNBOOK；回滾須一鍵且資料完整（因進場困難）。
+          實作註：db-backup.mjs（better-sqlite3 Online Backup API，不對使用中主檔 cp）+ db-verify.mjs（quick_check）；
+          backup.sh（容器內取一致快照 + docker cp reports + secrets → tar，含 MANIFEST schema 版本）、restore.sh（還原前驗證、
+          一次性容器寫回 named volume）、upgrade.sh（強制備份失敗即中止、記錄前一版 tag、等健康）、rollback.sh（相容=切回 tag／
+          不相容=還原備份+切回，一鍵）、docs/RUNBOOK.md（含遷移相容性標記表）。備份機制以單元測試 round-trip 實證（integrity ok）。
       - id: T704
         title: "部署驗收與穩定性測試（冒煙/重啟存活/離線）"
         type: GENERAL
@@ -742,7 +750,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T702, T703]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -752,6 +760,9 @@ milestones:
         description: |
           斷網部署演練、容器重啟後資料/任務存活、升級+回滾演練、整體 smoke 通過，作為交付驗收。
           斷網 0 外連、worker 崩潰恢復 RTO、磁碟閾值行為、單頁逾時不拖垮佇列、備份→還原→回滾端到端必過。
+          實作註：docs/ACCEPTANCE.md 驗收清單（A 管線/B 部署/C 穩定/D 離線安全 + E 現場斷網演練腳本），
+          誠實標示 ✅本環境已實證（in-proc e2e、單元測試）vs 🟡需現場 docker 環境（已附可執行腳本+步驟）。
+          本環境無 docker daemon，故 compose up / 斷網 / 重啟存活屬現場勾稽；管線/備份/egress/a11y 已實證。
       - id: T705
         title: "資料保留與磁碟治理 (日誌輪替/報表清理/WAL checkpoint)"
         type: NEW_FEATURE

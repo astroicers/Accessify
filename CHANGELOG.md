@@ -5,6 +5,12 @@
 ## [Unreleased]
 
 ### Added
+- **M7/T702+T703+T704**：離線交付包 + 備份/還原/升級/回滾 + 部署驗收（ADR-002/003/008/011）。
+  - **T702 離線包**：`package-offline.sh`（build → `docker save` gzip + 打包 compose/scripts/docs）、`install.sh`（`docker load` → 產生 0600 機密：`openssl` cookie 簽章金鑰 + 自簽 TLS → `compose up` → 等健康 → 提示一次性 admin 密碼）、`verify.sh`（healthz / OpenAPI 契約 / SPA 首頁 / 選用登入）。`Dockerfile` runtime 階段 `COPY` db-backup/verify helper。
+  - **T703 備份/還原/升級/回滾**：`scripts/db-backup.mjs`（better-sqlite3 **Online Backup API**，對使用中 WAL 庫取一致快照，**絕不 cp 主檔**）+ `db-verify.mjs`（`quick_check`）；`backup.sh`（容器內快照 + `docker cp` reports + secrets → tar，含 MANIFEST schema 版本）、`restore.sh`（還原前驗證、一次性容器寫回 named volume）、`upgrade.sh`（**升級前強制備份失敗即中止**、記錄前一版 tag、expand-contract 遷移、等健康）、`rollback.sh`（**一鍵**：相容=切回映像 tag／不相容=還原備份+切回）。`docs/RUNBOOK.md`（含遷移相容性標記表）。**備份機制以單元測試 round-trip 實證**（integrity ok + 資料/schema 完整）。
+  - **T704 驗收**：`docs/ACCEPTANCE.md`（A 管線/B 部署/C 穩定/D 離線安全/E 現場斷網演練腳本），誠實標示 ✅本環境已實證 vs 🟡需現場 docker。
+  - 驗證：`tsc -b`/`vite build`/lint 綠、**107 unit tests**（+備份 round-trip）、**shellcheck 全 .sh clean**、`node --check` .mjs 通過。對抗式 review（見下）。`scripts/**` 納入 eslint ignore（維運腳本，改由 shellcheck/node --check 驗證）。
+  - 誠實邊界：本環境無 docker daemon → `docker build`/`compose up`/斷網/重啟存活屬**現場勾稽**（已附可執行腳本+步驟）；核心管線、備份機制、egress、a11y 已實證。
 - **M7/T701**：生產 entrypoint + 單機 docker-compose（ADR-002/003/009）。**補上先前缺漏的可執行進場**：
   - 新套件 `@accessify/worker`（組合根）：`makeRunJob` 真實串接 scanner→mapping→report→core（讀 scan_task → egress 白名單掃描 → 嚴重度/分數/誠實涵蓋率 → `persistScan` → zh-TW/en-US × html/pdf/xlsx 六報表 → `saveReport`）；sitemap 以 egress-checked `resp.text()` 取原始 XML 解析；`buildReports` **冪等**（重跑前清前次 pages/issues/reports，解 retry 重複入庫）、可注入 toPdf 單元測試。`worker/main.ts`（`runWorker` + 排程 tick + liveness 心跳檔）。
   - `@accessify/api` `main.ts`：openDb→runMigrations→ensureAdmin（一次性密碼）→buildServer→listen；**同容器靜態服務 web SPA（dep-free、path-safe，不引入 @fastify/static 免新增相依）**、TLS（cert/key 檔）、cookie 簽章金鑰（ADR-008）；secrets 缺檔時降級 HTTP/未簽章而非崩潰。`server.ts` 加 `webDir`/`https`/`cookieSecret`（https 於執行期附掛，保持 instance 型別）。

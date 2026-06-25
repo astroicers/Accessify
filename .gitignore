@@ -53,6 +53,12 @@ vendor-offline/
 # ── 機密（install.sh 於現場產生：TLS 金鑰、cookie 簽章金鑰；0600，絕不進版控）──
 /secrets/
 
+# ── 部署執行期產物（現場主機）──
+*.bak                 # sed -i.bak 暫存（如 .env.bak，可能含設定）
+.accessify-prev-tag   # 回滾用前一版映像 tag 記錄
+/backups/
+/dist/
+
 # ── 雜項 ──
 .DS_Store
 *.log

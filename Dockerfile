@@ -49,6 +49,8 @@ COPY --from=deps /app/node_modules /app/node_modules
 COPY --from=deps /ms-playwright /ms-playwright
 COPY --from=build /app/packages /app/packages
 COPY package.json ./
+# 備份/還原（Online Backup API，T703）與選用驗收 fixture sidecar（T704）所需的 node 輔助。
+COPY scripts/db-backup.mjs scripts/db-verify.mjs scripts/serve-fixtures.mjs ./scripts/
 # 預建並 chown data/reports 掛載點：Docker 初始化空 named volume 時會沿用映像內該目錄的擁有者，
 # 故非 root（uid 10001）首啟即可寫入 SQLite(WAL) 與報表（否則 root:root 空 volume → EACCES）。
 RUN mkdir -p /data /reports && chown accessify:accessify /data /reports

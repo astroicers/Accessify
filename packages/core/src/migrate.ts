@@ -151,7 +151,10 @@ export const MIGRATIONS: Migration[] = [
 ];
 
 /**
- * 套用所有待辦遷移（單一交易、冪等）。回傳本次套用的遷移數。
+ * 套用所有待辦遷移。回傳本次套用的遷移數。
+ * 併發安全：以 EXCLUSIVE 交易序列化（api 與 worker 兩寫入程序可同時啟動；busy_timeout 等鎖後重讀版本而非重套）。
+ * Fail-closed：若 DB schema_version 高於本執行檔已知最高版本（如回滾到舊映像卻面對新 schema），直接拋錯拒絕啟動，
+ *   避免舊程式對不認識的 schema 靜默運作（ADR-002 回滾安全）。
  */
 export function runMigrations(db: Db): number {
   db.exec(`
@@ -161,22 +164,29 @@ export function runMigrations(db: Db): number {
       applied_at TEXT NOT NULL
     );
   `);
-  const row = db.prepare('SELECT MAX(version) AS v FROM schema_version').get() as {
-    v: number | null;
-  };
-  const current = row.v ?? 0;
-  const pending = MIGRATIONS.filter((m) => m.version > current).sort(
-    (a, b) => a.version - b.version,
-  );
+  const maxKnown = MIGRATIONS.reduce((m, x) => Math.max(m, x.version), 0);
   const insert = db.prepare(
     'INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)',
   );
-  const apply = db.transaction((migrations: Migration[]) => {
-    for (const m of migrations) {
+  let applied = 0;
+  const run = db.transaction(() => {
+    const row = db.prepare('SELECT MAX(version) AS v FROM schema_version').get() as {
+      v: number | null;
+    };
+    const current = row.v ?? 0;
+    if (current > maxKnown) {
+      throw new Error(
+        `schema_version ${current} 高於本執行檔支援的最高版本 ${maxKnown}；拒絕啟動（請改用相容映像，或還原相容備份再回滾）。`,
+      );
+    }
+    const pending = MIGRATIONS.filter((m) => m.version > current).sort((a, b) => a.version - b.version);
+    for (const m of pending) {
       db.exec(m.up);
       insert.run(m.version, m.name, new Date().toISOString());
     }
+    applied = pending.length;
   });
-  apply(pending);
-  return pending.length;
+  // EXCLUSIVE：兩程序併發啟動時，後者等鎖→於鎖內重讀版本→無待辦則 no-op（不重複套用、不衝突）。
+  run.exclusive();
+  return applied;
 }
