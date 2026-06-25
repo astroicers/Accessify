@@ -1,6 +1,6 @@
 {
   "name": "@accessify/api",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "REST API、認證/RBAC、稽核、入列",
@@ -10,7 +10,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@accessify/core": "0.1.0",
+    "@accessify/core": "1.0.0",
     "@fastify/cookie": "^11.0.2",
     "@fastify/swagger": "^9.7.0",
     "bcryptjs": "^3.0.3",

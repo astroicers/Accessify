@@ -162,6 +162,6 @@ export function collectStatus(db: Db, opts: CollectStatusOptions = {}): ServerSt
     db: { integrity, schemaVersion },
     disk,
     tls,
-    versions: { node: process.version, app: opts.appVersion ?? '0.1.0', schema: schemaVersion },
+    versions: { node: process.version, app: opts.appVersion ?? '1.0.0', schema: schemaVersion },
   };
 }

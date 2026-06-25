@@ -54,7 +54,7 @@ async function main(): Promise<void> {
   const server = buildServer({
     db,
     dataDir: dirname(dbPath),
-    appVersion: process.env.APP_VERSION ?? '0.1.0',
+    appVersion: process.env.APP_VERSION ?? '1.0.0',
     sessionTtlMs: process.env.SESSION_TIMEOUT_MIN
       ? Number(process.env.SESSION_TIMEOUT_MIN) * 60_000
       : undefined,

@@ -1,6 +1,6 @@
 {
   "name": "@accessify/worker",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "背景 worker 組合根：scanner → mapping → report → core 真實 runJob 與程序入口",
@@ -10,11 +10,11 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@accessify/core": "0.1.0",
-    "@accessify/mapping": "0.1.0",
-    "@accessify/report": "0.1.0",
-    "@accessify/scanner": "0.1.0",
-    "@accessify/shared": "0.1.0",
+    "@accessify/core": "1.0.0",
+    "@accessify/mapping": "1.0.0",
+    "@accessify/report": "1.0.0",
+    "@accessify/scanner": "1.0.0",
+    "@accessify/shared": "1.0.0",
     "playwright": "^1.49.1"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@accessify/shared",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "共用型別、i18n catalog、工具",

@@ -4,3 +4,4 @@ export const PACKAGE = '@accessify/mapping' as const;
 export * from './wcag.js';
 export * from './severity.js';
 export * from './coverage.js';
+export * from './messages.js';

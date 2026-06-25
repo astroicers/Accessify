@@ -1,6 +1,6 @@
 {
   "name": "accessify",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "地端、無網際網路（軍網）無障礙網頁檢測工具",

@@ -1,6 +1,6 @@
 {
   "name": "@accessify/mapping",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "規則碼→WCAG 對應、嚴重度分級、涵蓋率",

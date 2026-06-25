@@ -1,6 +1,6 @@
 {
   "name": "@accessify/core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "領域模型、設定、SQLite 存取與遷移",

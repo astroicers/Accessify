@@ -8,6 +8,7 @@ import {
   coverageSummary,
   resolveCriterion,
   toSuccessCriterion,
+  localizeFindingMessage,
   COVERAGE_NOTE,
   type Severity,
 } from '@accessify/mapping';
@@ -88,7 +89,7 @@ export async function buildReports(
           level,
           severity,
           selector: finding.selector,
-          message: finding.message,
+          message: localizeFindingMessage(lang, finding.ruleId, crit ? crit.name[lang] : null, finding.message),
         };
       }),
     );

@@ -1,6 +1,6 @@
 {
   "name": "@accessify/web",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "React + Vite 本地 Web Portal（visual-web-stack 基礎層）",
@@ -11,7 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@accessify/shared": "0.1.0",
+    "@accessify/shared": "1.0.0",
     "i18next": "^24.2.0",
     "next-themes": "^0.4.4",
     "react": "^19.0.0",

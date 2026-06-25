@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-25
+
+> 首個完整交付：地端離線（軍網）無障礙網頁檢測工具，M0–M7 共 8 milestone / 36 任務全數完成。
+> 掃描核心（Playwright + axe-core + HTML_CodeSniffer）→ WCAG 對應與誠實涵蓋率 → 雙語報表（HTML/PDF/Excel）→
+> 本地 Web Portal（自身 WCAG 2.1 AA）→ 排程/差異/站內通知 → 單機 compose 交付（離線包、備份/還原、升級/回滾、資料保留、內網 TLS）。
+
 ### Added
 - **🎉 專案完成（M0–M7 全 8 milestone、36 任務）**：地端離線無障礙檢測工具，自掃描核心 → WCAG 對應 → 雙語報表 → 本地 Web Portal → 排程/差異/通知 → 地端交付/備份/升級/回滾，端到端可運行（in-proc e2e 實證：真實 Chromium 掃描 → 中文 PDF）。
 - **M7/T705**：資料保留與磁碟治理（ADR-011 / FR-603）`@accessify/core` `retention.ts` `runRetention`：刪除逾 `RETENTION_DAYS` 且已結束（completed/failed）的掃描 → FK CASCADE 清 pages/issues/reports/notifications + `rmSync` 報表檔 + `wal_checkpoint(TRUNCATE)` 收斂 -wal（`julianday` 比較避格式陷阱、只刪已結束、停用時仍 checkpoint）。worker/main.ts 每日 tick（`RETENTION_DAYS` 預設 0=停用、`RETENTION_TICK_MS`）。單元測試。日誌輪替交由容器 logging driver。
@@ -78,6 +84,10 @@
   （`scanner/scan.ts`、`render.ts`）。**出站白名單仍由 `context.route` 每請求強制，與 CSP 無關 → SSRF 邊界不受影響（ADR-009）**。
   以真實掃描 https://github.com/ 驗證：修復後 10 findings（htmlcs）+ 6 雙語報表含中文 PDF（修復前 0、直接失敗）。
 - 新增 `scripts/scan-url.mjs`（開發/release 驗證用 CLI：對單一白名單 URL 跑完整管線；亦為 CSP 回歸驗證工具）。
+- **報表「說明」欄在 zh-TW 仍為英文（release 驗證發現）**：axe/HTMLCS 引擎訊息原樣英文，報表只在地化標籤未譯訊息。
+  新增 `mapping/messages.ts` `localizeFindingMessage`：常見規則（依 axe id / HTMLCS 技術碼比對）→ 精準 zh-TW；
+  未涵蓋者以對應 WCAG 準則中文名兜底（zh-TW 報表永遠中文、不留英文）；en-US 維持引擎原文。
+  以 github.com 驗證：zh-TW 報表說明 0 句殘留英文，en-US 不變。
 
 ### Changed（對抗式審查後強化）
 - 經多代理人審查（60 條確認 finding）後強化：新增 ADR-008（內網 TLS/secrets）、ADR-009（Chromium sandbox + 掃描器出站安全）、ADR-010（離線時間/排程）、ADR-011（資料保留/磁碟/可觀測）。

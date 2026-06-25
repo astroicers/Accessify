@@ -132,7 +132,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
   // Cookie 簽章金鑰（ADR-008）；未提供時退回未簽章（session 以 DB token 驗證仍安全，測試用）。
   void app.register(cookie, deps.cookieSecret ? { secret: deps.cookieSecret } : {});
   void app.register(swagger, {
-    openapi: { info: { title: 'Accessify API', version: '0.1.0' } },
+    openapi: { info: { title: 'Accessify API', version: '1.0.0' } },
   });
 
   const tokenOf = (req: FastifyRequest): string | null => {
