@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { openDb, runMigrations, type Db } from '@accessify/core';
 import { collectStatus } from './status.js';
 
@@ -54,5 +58,37 @@ describe('collectStatus（T507 / 系統狀態）', () => {
     const s = collectStatus(db, { now: '2026-06-24T00:00:00.000Z' });
     expect(s.worker.staleLeases).toBe(1);
     expect(s.overall).toBe('degraded');
+  });
+});
+
+describe('collectStatus TLS 憑證到期（T706）', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'accessify-tls-'));
+  const cert = join(dir, 'cert.pem');
+  const key = join(dir, 'key.pem');
+  // 離線以 openssl 產生 365 天自簽憑證（CI/開發機皆具備）。
+  execFileSync(
+    'openssl',
+    ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '365', '-keyout', key, '-out', cert, '-subj', '/CN=test'],
+    { stdio: 'ignore' },
+  );
+  const day = 86_400_000;
+
+  it('有效憑證 → 正剩餘天數；近到期(<14d) → degraded；過期 → 負值', () => {
+    const db = seed();
+    const valid = collectStatus(db, { tlsCertPath: cert });
+    expect(valid.tls).not.toBeNull();
+    expect(valid.tls!.daysRemaining).toBeGreaterThan(300);
+
+    const near = collectStatus(db, { tlsCertPath: cert, now: new Date(Date.now() + 358 * day).toISOString() });
+    expect(near.tls!.daysRemaining).toBeLessThan(14);
+    expect(near.overall).toBe('degraded');
+
+    const expired = collectStatus(db, { tlsCertPath: cert, now: new Date(Date.now() + 400 * day).toISOString() });
+    expect(expired.tls!.daysRemaining).toBeLessThan(0);
+  });
+
+  it('憑證缺檔/無法解析 → tls null 且不拋出', () => {
+    const db = seed();
+    expect(collectStatus(db, { tlsCertPath: '/nonexistent/cert.pem' }).tls).toBeNull();
   });
 });

@@ -61,6 +61,7 @@ async function main(): Promise<void> {
     cookieSecret: fromEnvOrFile('COOKIE_SECRET', 'COOKIE_SECRET_FILE'),
     https,
     webDir: process.env.ACCESSIFY_WEB_DIR,
+    tlsCertPath: process.env.TLS_CERT_PATH,
   });
 
   const host = process.env.HOST ?? '0.0.0.0';

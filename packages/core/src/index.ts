@@ -11,3 +11,4 @@ export * from './worker.js';
 export * from './scheduler.js';
 export * from './diff.js';
 export * from './notifications.js';
+export * from './retention.js';

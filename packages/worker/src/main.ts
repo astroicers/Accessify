@@ -4,7 +4,7 @@
 import os from 'node:os';
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { openDb, runMigrations, runWorker } from '@accessify/core';
+import { openDb, runMigrations, runWorker, runRetention } from '@accessify/core';
 import { makeRunJob } from './run-job.js';
 
 function numEnv(name: string, def: number): number {
@@ -45,10 +45,26 @@ async function main(): Promise<void> {
   writeHeartbeat();
   const heartbeat = setInterval(writeHeartbeat, 30_000);
 
+  // 資料保留與磁碟治理（T705 / ADR-011）：定期刪逾期掃描+報表檔，並 WAL checkpoint 收斂 -wal。
+  // RETENTION_DAYS<=0 表停用刪除（仍會 checkpoint）。預設每日。
+  const retentionDays = numEnv('RETENTION_DAYS', 0);
+  const retentionTickMs = numEnv('RETENTION_TICK_MS', 86_400_000);
+  const runRet = (): void => {
+    try {
+      const r = runRetention(db, { retentionDays, reportsBaseDir });
+      if (r.deletedScans > 0) console.log(`[worker] retention: removed ${r.deletedScans} expired scan(s)`);
+    } catch (e) {
+      console.error('[worker] retention error', e);
+    }
+  };
+  runRet();
+  const retention = setInterval(runRet, retentionTickMs);
+
   let stop = false;
   const shutdown = (): void => {
     stop = true;
     clearInterval(heartbeat);
+    clearInterval(retention);
   };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);

@@ -17,7 +17,8 @@ echo "[package] 打包部署交付物（compose / scripts / docs）…"
 tar -czf "${OUT}/accessify-deploy-${TAG}.tar.gz" \
   docker-compose.yml .env.example \
   scripts/install.sh scripts/verify.sh scripts/backup.sh scripts/restore.sh \
-  scripts/upgrade.sh scripts/rollback.sh scripts/db-backup.mjs scripts/db-verify.mjs \
+  scripts/upgrade.sh scripts/rollback.sh scripts/rotate-tls.sh \
+  scripts/db-backup.mjs scripts/db-verify.mjs scripts/serve-fixtures.mjs \
   docs/RUNBOOK.md docs/ACCEPTANCE.md
 
 echo "[package] 交付物："

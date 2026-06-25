@@ -75,8 +75,8 @@ accessify-<version>/
 | `TLS_KEY_PATH` | TLS 私鑰檔路徑（PEM，見 §9） | （必填） |
 | `TZ` | 容器時區（ADR-010） | Asia/Taipei |
 | `SESSION_TIMEOUT` | Session 逾時（分鐘，可覆寫） | 30 |
-| `LOG_RETENTION` | 日誌保留份數/天數（輪替，見 §8） | 例：14 |
-| `REPORT_RETENTION` | reports 與舊 scan/issue 保留（次數或天數，見 §8） | 例：30 |
+| `RETENTION_DAYS` | 逾期掃描+報表自動清除天數（worker；0=停用刪除，見 §8） | 例：30（預設 0） |
+| `RETENTION_TICK_MS` | 資料保留清理週期（毫秒，見 §8） | 例：86400000（每日） |
 
 機敏設定不入版控（見 .gitignore）。`SESSION_SECRET` 與 cookie 簽章金鑰由 `install.sh` **首次啟動隨機產生**（嚴禁固定預設值），存於 `0600` 權限 secrets 檔；輪替後既有 session 全部失效（見 §3、ADR-008）。
 
@@ -114,7 +114,8 @@ accessify-<version>/
 
 - 結構化日誌寫本地檔（不外送）；無外部監控；以 healthcheck + 站內狀態頁 + 稽核日誌為主。
 - **日誌輪替**：依 size/time 輪替並保留份數（參數見 §4 `LOG_RETENTION`，可設定）。
-- **資料保留**：reports 與舊 scan/issue 依 `REPORT_RETENTION`（次數或天數，可設定）自動清理，確保長跑下磁碟成長有界。
+- **資料保留**：逾期掃描（含 reports 檔與 pages/issues/notifications）由 worker 依 `RETENTION_DAYS` 每日自動清理（0=停用），
+  並週期 WAL checkpoint，確保長跑下磁碟成長有界（ADR-011，T705）。日誌輪替屬容器層 logging driver 設定（場域既有方案）。
 - **SQLite 磁碟治理**：`wal_autocheckpoint` + 定期 `PRAGMA wal_checkpoint(TRUNCATE)`，防 `-wal` 膨脹（見 §6）。
 - **本地健康/狀態頁（`/status`，無外網）** 內容：worker 心跳、佇列積壓、最近失敗、磁碟用量、DB integrity、排程上次/下次、**憑證到期天數**。
 - **站內閾值告警**：磁碟用量與憑證到期天數達閾值時於狀態頁告警（無對外連線）。時間戳記以 `Asia/Taipei`（ADR-010）。

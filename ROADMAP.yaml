@@ -670,7 +670,7 @@ milestones:
   - id: M7
     title: "地端交付與穩定性"
     target_date: 2026-10-07
-    status: pending
+    status: completed
     tasks:
       - id: T701
         title: "docker-compose 一鍵部署 + .env 範本 + healthchecks"
@@ -771,7 +771,7 @@ milestones:
         spec: null
         srs_ref: FR-603
         depends_on: [T403, T505]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -782,6 +782,10 @@ milestones:
           日誌 size/time 輪替 + 保留份數（可設定）、reports 與舊 scan/issue 保留期自動清理（可設定，
           預設保留 N 次或 X 天）、SQLite WAL wal_autocheckpoint + 定期 PRAGMA wal_checkpoint(TRUNCATE)
           防 -wal 膨脹；確保長跑下磁碟不無界成長。
+          實作註：core/retention.ts runRetention（刪 completed/failed 逾 RETENTION_DAYS 的掃描 → FK CASCADE
+          清 pages/issues/reports/notifications + rmSync 報表檔 + wal_checkpoint(TRUNCATE)；julianday 比較、
+          只刪已結束、停用時仍 checkpoint）；worker/main.ts 每日 tick（RETENTION_DAYS 預設 0=停用、RETENTION_TICK_MS）；
+          單元測試。日誌輪替交由容器 logging driver（場域既有方案）。
       - id: T706
         title: "內網 TLS 憑證佈建與輪替"
         type: NEW_FEATURE
@@ -790,7 +794,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T701]
-        status: pending
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -800,3 +804,6 @@ milestones:
         description: |
           內網 TLS 憑證佈建（api 容器終結，TLS_CERT_PATH/TLS_KEY_PATH）、自簽產生腳本 + 匯入內網信任鏈指引、
           維持零對外（停用 OCSP/CRL 線上檢查）、憑證到期站內告警（見 ADR-011）與輪替 runbook。
+          實作註：install.sh 首啟產自簽 TLS（過渡）；rotate-tls.sh 輪替（cert/key 公鑰相符檢查、key-agnostic、
+          force-recreate api）；collectStatus 以 X509 讀 notAfter → /api/status tls.daysRemaining，低於門檻(14d)
+          轉 degraded；狀態頁 TLS 列；RUNBOOK §7。零對外（僅讀本地憑證 notAfter，不接 OCSP/CRL）。單元測試涵蓋。

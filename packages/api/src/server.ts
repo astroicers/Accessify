@@ -49,6 +49,8 @@ export interface ServerDeps {
   https?: { key: string | Buffer; cert: string | Buffer };
   /** 內建靜態服務 web SPA 的目錄（如映像內 packages/web/dist）；提供則同容器服務 Portal（DEPLOY_SPEC §1）。 */
   webDir?: string;
+  /** TLS 憑證路徑（供 /api/status 計算剩餘天數；僅讀 notAfter，不外洩內容）。 */
+  tlsCertPath?: string;
 }
 
 /** 目前唯一被程式碼消費的設定鍵；PUT 僅接受此清單內的鍵（防注入任意 settings 列）。 */
@@ -291,7 +293,7 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
 
   // 系統狀態（FR / ADR-011）。viewer 即可（admin 為超集）；僅派生值，不洩漏路徑/主機/密鑰。
   app.get('/api/status', { preHandler: [requireAuth, requireRole('viewer')] }, async () =>
-    collectStatus(db, { dataDir: deps.dataDir, appVersion: deps.appVersion }),
+    collectStatus(db, { dataDir: deps.dataDir, appVersion: deps.appVersion, tlsCertPath: deps.tlsCertPath }),
   );
 
   app.get('/api/settings', { preHandler: [requireAuth, requireRole('admin')] }, async () => {

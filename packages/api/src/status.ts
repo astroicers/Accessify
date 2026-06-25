@@ -2,7 +2,8 @@
 // 僅輸出「派生值」（計數、百分比、ok/fail、秒數），絕不洩漏絕對路徑、主機清單、密鑰（ADR-008/009/011）。
 // 純函式 collectStatus 與 HTTP 解耦，便於以記憶體 DB 測試；無任何對外網路（地端離線鐵則）。
 
-import { statfsSync } from 'node:fs';
+import { statfsSync, readFileSync } from 'node:fs';
+import { X509Certificate } from 'node:crypto';
 import type { Db } from '@accessify/core';
 
 export interface StatusThresholds {
@@ -10,9 +11,15 @@ export interface StatusThresholds {
   heartbeatStaleSec: number;
   /** 磁碟使用率達此百分比視為吃緊。 */
   diskUsedPct: number;
+  /** TLS 憑證剩餘天數低於此值視為吃緊（ADR-011 站內告警）。 */
+  certExpiryDays: number;
 }
 
-export const DEFAULT_THRESHOLDS: StatusThresholds = { heartbeatStaleSec: 120, diskUsedPct: 90 };
+export const DEFAULT_THRESHOLDS: StatusThresholds = {
+  heartbeatStaleSec: 120,
+  diskUsedPct: 90,
+  certExpiryDays: 14,
+};
 
 export interface ServerStatus {
   overall: 'healthy' | 'degraded' | 'down';
@@ -27,6 +34,8 @@ export interface ServerStatus {
   worker: { heartbeatStaleSec: number | null; staleLeases: number };
   db: { integrity: 'ok' | 'fail'; schemaVersion: number };
   disk: { usedPct: number; freeBytes: number; totalBytes: number } | null;
+  /** TLS 憑證剩餘天數（僅派生值，不回傳憑證內容/路徑）；無 TLS 或讀取失敗為 null。 */
+  tls: { daysRemaining: number } | null;
   versions: { node: string; app: string; schema: number };
 }
 
@@ -34,6 +43,8 @@ export interface CollectStatusOptions {
   /** 計算磁碟用量的目錄（僅用於 statfs，不回傳路徑本身）。預設 process.cwd()。 */
   dataDir?: string;
   appVersion?: string;
+  /** TLS 憑證路徑（僅讀 notAfter 計算剩餘天數；不回傳路徑/內容）。 */
+  tlsCertPath?: string;
   /** 測試可注入；預設 process.uptime()。 */
   uptimeSec?: number;
   /** 測試可注入「現在」（ISO 字串）；預設 new Date().toISOString()。 */
@@ -116,6 +127,20 @@ export function collectStatus(db: Db, opts: CollectStatusOptions = {}): ServerSt
 
   const uptimeSec = Math.round(opts.uptimeSec ?? process.uptime());
 
+  // TLS 憑證剩餘天數（僅讀 notAfter；失敗/無 TLS → null，不洩漏路徑/內容）。
+  let tls: ServerStatus['tls'] = null;
+  if (opts.tlsCertPath) {
+    try {
+      const cert = new X509Certificate(readFileSync(opts.tlsCertPath));
+      const daysRemaining = Math.floor(
+        (new Date(cert.validTo).getTime() - new Date(now).getTime()) / 86_400_000,
+      );
+      tls = { daysRemaining };
+    } catch {
+      tls = null;
+    }
+  }
+
   let overall: ServerStatus['overall'] = 'healthy';
   if (integrity === 'fail') {
     overall = 'down';
@@ -123,7 +148,8 @@ export function collectStatus(db: Db, opts: CollectStatusOptions = {}): ServerSt
     staleLeases > 0 ||
     queue.failed > 0 ||
     (heartbeatStaleSec != null && heartbeatStaleSec > th.heartbeatStaleSec) ||
-    (disk != null && disk.usedPct >= th.diskUsedPct)
+    (disk != null && disk.usedPct >= th.diskUsedPct) ||
+    (tls != null && tls.daysRemaining < th.certExpiryDays)
   ) {
     overall = 'degraded';
   }
@@ -135,6 +161,7 @@ export function collectStatus(db: Db, opts: CollectStatusOptions = {}): ServerSt
     worker: { heartbeatStaleSec, staleLeases },
     db: { integrity, schemaVersion },
     disk,
+    tls,
     versions: { node: process.version, app: opts.appVersion ?? '0.1.0', schema: schemaVersion },
   };
 }

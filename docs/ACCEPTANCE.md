@@ -42,7 +42,7 @@
 | D1 | 執行期 0 對外連線 | 程式碼層：掃描受 egress 白名單把關（loopback/link-local 永久封鎖，單元測試）；無 telemetry/CDN/外部字型；建置期才抓 Chromium | ✅ 程式碼 / 🟡 現場斷網演練 |
 | D2 | SSRF 邊界 | egress 每請求 + redirect 後校驗；白名單建立時格式驗證；單元測試 | ✅ |
 | D3 | 機密不入映像/版控 | `.gitignore` 排除 `/secrets/`；`install.sh` 現場產生 0600；`.env.example` 無明文 | ✅ |
-| D4 | 自身 WCAG 2.1 AA | Playwright + axe-core 掃 production build，全頁面 zh-TW/en-US × light/dark 0 violations | ✅ |
+| D4 | 自身 WCAG 2.1 AA（自動可判定部分） | `npm run build && node scripts/a11y-check.mjs`：Playwright + axe 掃所有 Portal 頁面 × zh-TW/en-US × light/dark = 0 violations（非完整 AA 保證，ADR-005） | ✅ |
 
 ## E. 現場斷網演練腳本（B/C 類 🟡 項目）
 
@@ -60,5 +60,6 @@ scripts/verify.sh                                  # healthz/openapi/spa 綠
 ```
 
 > 註：本環境無 docker daemon，B/C/D 之 🟡 項目以「已提供可執行腳本 + 步驟」交付，現場依上表逐項勾稽。
-> ✅ 項目來源：D4（自身 WCAG-AA）由 `make e2e`（Playwright + axe）實證；其餘 ✅ 由 `make test`（vitest 單元測試）
-> 或 `node scripts/smoke-inproc.mjs`（in-proc 真實 Chromium e2e）可重現（見各列「驗證方式」與 CHANGELOG）。
+> ✅ 項目可重現指令：`make test`（vitest 單元測試，含 retention/backup/migrate/status TLS）、
+> `node scripts/smoke-inproc.mjs`（in-proc 真實 Chromium e2e + 中文 PDF）、`node scripts/a11y-check.mjs`（Playwright+axe 全頁面）。
+> 三者皆已於開發機執行通過（見 CHANGELOG）。`e2e/a11y.spec.ts` 為 Playwright-test 骨架，正式 CI a11y gate 待接（現以 a11y-check.mjs 佐證）。

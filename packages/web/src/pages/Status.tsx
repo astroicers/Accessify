@@ -129,6 +129,15 @@ export function Status() {
               </dl>
             </div>
 
+            <div>
+              <h2 className="mb-1 text-lg font-semibold">{t('status.tlsTitle')}</h2>
+              <dl>
+                <Row label={t('status.certExpiry')}>
+                  {s.tls ? `${s.tls.daysRemaining} ${t('status.days')}` : t('status.never')}
+                </Row>
+              </dl>
+            </div>
+
             <div className="sm:col-span-2">
               <h2 className="mb-1 text-lg font-semibold">{t('status.versionsTitle')}</h2>
               <dl>

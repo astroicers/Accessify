@@ -110,6 +110,7 @@ export interface ServerStatus {
   worker: { heartbeatStaleSec: number | null; staleLeases: number };
   db: { integrity: 'ok' | 'fail'; schemaVersion: number };
   disk: { usedPct: number; freeBytes: number; totalBytes: number } | null;
+  tls: { daysRemaining: number } | null;
   versions: { node: string; app: string; schema: number };
 }
 
