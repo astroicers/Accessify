@@ -53,6 +53,8 @@ SQLite（WAL）+ 內嵌佇列 · Fastify · React 19 + Vite + Tailwind（visual-
 ```bash
 # 1) 有網建置環境：打包離線安裝包（映像 tar + 部署檔）
 scripts/package-offline.sh 1.0.0
+# 　 或改拉 CI 權威映像（ADR-012；private package 需先 docker login ghcr.io）：
+# PULL_GHCR=1 scripts/package-offline.sh 1.0.0
 
 # 2) 現場（斷網）主機：安裝並冒煙驗證
 ACCESSIFY_TAG=1.0.0 scripts/install.sh accessify-image-1.0.0.tar.gz
@@ -61,6 +63,10 @@ scripts/verify.sh
 # 3) 取一次性 admin 密碼（登入後立即改密），瀏覽器開 https://<主機>:8443
 docker compose logs api | grep 'initial admin password'
 ```
+
+> **映像維護（連網側，ADR-012）**：push git tag `v*` 或 `main` 時，CI 自動建置並發布
+> `ghcr.io/astroicers/accessify`（private；tag → semver/`latest`、main → `edge`）。GHCR 僅為
+> 連網側建置/版本管理通道——**現場交付仍為上述離線包，執行期零對外不變**。
 
 登入後於「設定」頁設定**掃描白名單**（空白名單＝拒絕所有掃描，屬安全預設）。
 維運（備份／還原／升級／回滾）見 [`docs/RUNBOOK.md`](docs/RUNBOOK.md)，部署驗收見

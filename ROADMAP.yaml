@@ -863,7 +863,7 @@ milestones:
   - id: M9
     title: "連網側發布通道（GHCR）"
     target_date: 2026-07-16
-    status: in_progress
+    status: completed
     tasks:
       - id: T901
         title: "ADR-012 GHCR 發布通道決策"
@@ -873,7 +873,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: []
-        status: in_progress
+        status: completed
         estimated_complexity: low
         source_type: manual
         source_ref: ""
@@ -883,7 +883,7 @@ milestones:
         description: |
           ADR-012（Draft）：GitHub Actions + GHCR（private）作為連網側建置/版本管理通道；
           現場（軍網）交付維持 docker save tarball，GHCR 零出現於現場文件/腳本（ADR-002 鐵則不變）。
-          待人類 /asp:approve-adr 012 升 Accepted 後方可實作 T902/T903。
+          2026-07-02 使用者經 /asp:approve-adr 012 二次確認直升 Accepted 後實作 T902/T903。
       - id: T902
         title: "release-image workflow + base 映像 digest pin"
         type: NEW_FEATURE
@@ -892,7 +892,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T901]
-        status: planned
+        status: completed
         estimated_complexity: medium
         source_type: manual
         source_ref: ""
@@ -912,7 +912,7 @@ milestones:
         spec: null
         srs_ref: null
         depends_on: [T902]
-        status: planned
+        status: completed
         estimated_complexity: low
         source_type: manual
         source_ref: ""

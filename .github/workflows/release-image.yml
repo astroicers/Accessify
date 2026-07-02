@@ -1,0 +1,62 @@
+# Accessify 映像發布（ADR-012）— 連網側建置/版本管理通道。
+# 鐵則（ADR-002）：GHCR 僅供連網側維護使用；現場（軍網）交付仍為 docker save tarball，
+# 執行期零對外。本 workflow 與現場文件/腳本（RUNBOOK / install / upgrade / rollback）互不引用。
+#
+# 觸發與標籤：
+#   push tag v*  → X.Y.Z + X.Y + latest（prerelease 依 metadata-action latest=auto 不掛 latest）
+#   push main    → edge
+#   一律          → sha-<short>
+name: Release Image
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-image-${{ github.ref }}
+  cancel-in-progress: false # 發布不可中途取消（穩定優先）
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # GHCR 要求小寫（repo 為 astroicers/Accessify → 映像名固定小寫 accessify）
+          images: ghcr.io/${{ github.repository_owner }}/accessify
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=edge,branch=main
+            type=sha
+          labels: |
+            org.opencontainers.image.title=Accessify
+            org.opencontainers.image.description=地端離線（air-gapped）無障礙網頁檢測工具 — WCAG 2.0/2.1 A/AA
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          # 現場伺服器為 amd64 Linux；不出貨未經測試的架構（ADR-012）
+          platforms: linux/amd64
+          push: true
+          # 保持單一 manifest（非 OCI index），簡化 pull → retag → docker save 離線打包路徑（ADR-012）
+          provenance: false
+          sbom: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

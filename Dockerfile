@@ -2,13 +2,14 @@
 #
 # 原則：建置於「有網環境」一次抓齊所有資產（npm 相依、Chromium、字型）；
 #       產出映像以 `docker save` 交付，現場 `docker load` 後**執行期零對外請求**。
-# 可重現：base 以固定 tag（正式交付請改 pin @sha256 digest）、相依以 package-lock.json pin。
+# 可重現：base 已 pin @sha256 index digest（ADR-002/012；升版須改 digest 並記錄於 CHANGELOG 與
+#         .asp-fact-check.md FC-003）、相依以 package-lock.json pin。
 #
 # 注意：Playwright Chromium 二進位於 M1/T101 加入 scanner 相依後，由下方標註處安裝；
 #       本階段已備妥 Chromium 所需 OS 函式庫與 CJK 字型，使 base 即 Chromium-ready。
 
 # ---- base：runtime 共用層（Node + 字型 + tini + Chromium OS 函式庫）----
-FROM node:22-bookworm-slim AS base
+FROM node:22-bookworm-slim@sha256:813a7480f28fdadac1f7f5c824bcdad435b5bc1322a5968bbbdef8d058f9dff4 AS base
 ENV TZ=Asia/Taipei \
     NODE_ENV=production \
     NPM_CONFIG_FUND=false \

@@ -2,11 +2,13 @@
 
 | 欄位 | 內容 |
 |------|------|
-| **狀態** | `Draft` |
+| **狀態** | `Accepted` |
 | **日期** | 2026-07-02 |
 | **決策者** | Accessify 維護者 |
 
 **狀態說明：** `Draft`（初稿，禁止實作）→ `FIRM`（POC 驗證，允許 commit，需附驗證證據）→ `Accepted`（人類審核通過）
+
+> ⬆️ 由 `Draft` 升 `Accepted`：使用者 2026-07-02 透過 `/asp:approve-adr 012` 呼叫、看完本指令摘要的決策重點（GHCR private 連網側通道、tag/main 觸發、amd64 only、現場零 GHCR 引用、否決之替代方案）與 Verification Evidence 狀態（待填——workflow 需核准後方可實作，證據屆時回填）後，經二次確認明確同意 Draft 直升（人類顯式授權，非 AI 自行升級，符合 ADR 狀態變更鐵則）。
 
 > 📝 命名備註：「ADR-012」字樣曾於 v1.0.0 文件散文中被非正式保留給未來的「站內 SMTP 通知」決策
 > （`.env.example`、CHANGELOG 1.0.0、release notes），但從未建立實際 ADR 檔案。本檔案正式佔用
@@ -125,5 +127,14 @@ GHCR 隨 repo 免維運即得同等能力。否決。
 
 ## Verification Evidence
 
-（待填——升級 FIRM/Accepted 時附：首次 workflow 執行連結、GHCR package 頁截圖、`PULL_GHCR=1` 打包
-之 image ID 與 GHCR digest 比對輸出）
+**本地已驗（2026-07-02，實作環境無 docker daemon，誠實標示）：**
+- `release-image.yml` YAML 語法驗證通過（python yaml.safe_load）；actionlint 未安裝，改以語法檢查。
+- `shellcheck scripts/package-offline.sh` clean；預設模式（未設 `PULL_GHCR`）程式路徑與 v1.0.0 相同（build → save）。
+- `docker-compose.yml` 未設變數時 image 解析預設 `accessify:local`（現場行為不變）。
+- `grep -ril ghcr docs/RUNBOOK.md docs/ACCEPTANCE.md scripts/install.sh scripts/upgrade.sh scripts/rollback.sh` 為空（現場零 GHCR 引用）。
+- base digest 查證：`.asp-fact-check.md` FC-003（Docker Hub API 即時查詢）。
+
+**待首次發布回填（🟡 需連網側 + docker 環境）：**
+- 首次 workflow 執行連結（push main → `edge`；push tag → semver/`latest`）。
+- `PULL_GHCR=1` 打包之 image ID 與 GHCR digest 比對輸出。
+- 交付包於乾淨機 `install.sh` + `verify.sh` 通過（流程與 v1.0.0 相同）。

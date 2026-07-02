@@ -3,10 +3,10 @@
 | 欄位 | 內容 |
 |------|------|
 | **專案名稱** | Accessify |
-| **版本** | v0.1.0 |
-| **最後更新** | 2026-06-24 |
+| **版本** | v0.1.2 |
+| **最後更新** | 2026-07-02 |
 | **狀態** | Draft |
-| **關聯** | ADR-002、ADR-003、ADR-006、ADR-008、ADR-009、ADR-010、ADR-011、SDS.md |
+| **關聯** | ADR-002、ADR-003、ADR-006、ADR-008、ADR-009、ADR-010、ADR-011、ADR-012、SDS.md |
 
 > **場域：地端、無網際網路（軍網）；進場維護困難 → 穩定優先、離線自足、可回滾。**
 
@@ -36,6 +36,24 @@
 - **內建**：Playwright Chromium 二進位、`better-sqlite3` 等原生模組之離線 prebuilt（鎖定 Node ABI；或於映像內建 build toolchain）、Noto Sans TC + Inter 子集化 woff2、所有 npm 相依（`npm ci --offline` / vendored）。
 - 建置於**有網環境**完成資產抓取；產出**可重現**（相同輸入→相同 digest）。
 - `better-sqlite3` prebuilt 與 Chromium 二進位**並列為離線資產**，缺一不可於斷網環境啟動。
+
+### 2.1 連網側映像發布通道（GHCR，ADR-012）
+
+> **鐵則提醒：GHCR 僅為連網側建置/版本管理通道，永不成為現場（軍網）或執行期依賴。**
+> 現場交付流程（§3 之離線包 + `docker load`）完全不變；RUNBOOK / install / upgrade /
+> rollback / ACCEPTANCE 零 GHCR 引用。
+
+- **發布**：`.github/workflows/release-image.yml` 於 push git tag `v*`（→ `X.Y.Z`、`X.Y`、`latest`；
+  prerelease 不掛 `latest`）與 push `main`（→ `edge`）建置並推送 `ghcr.io/astroicers/accessify`
+  （**private**；`sha-<short>` 一律附上）。僅 linux/amd64；provenance/SBOM 關閉（單一 manifest，
+  簡化 pull → save）。
+- **打包整合**：`PULL_GHCR=1 scripts/package-offline.sh <tag>` 拉取 CI 權威映像 → 重打為
+  `accessify:<tag>` → 走原有 `docker save` 路徑。任何維護機打出的交付包 image ID 與 CI 一致
+  （可與 GHCR digest 互證）。預設模式（本機建置）行為不變，亦為 GHCR 故障時之備援。
+- **拉取權杖**：private package 需 PAT（scope `read:packages`）`docker login ghcr.io`；權杖僅存在
+  連網側維護機，**嚴禁**進入交付包或現場。
+- **compose**：`image: ${ACCESSIFY_IMAGE:-accessify}:${ACCESSIFY_TAG:-local}`——現場保持預設；
+  `ACCESSIFY_IMAGE` 僅供連網側直接以 GHCR 映像測試。
 
 ---
 
@@ -140,3 +158,4 @@ accessify-<version>/
 |------|------|------|
 | v0.1.0 | 2026-06-24 | 初版建立（地端離線交付） |
 | v0.1.1 | 2026-06-24 | 補強備份單一機制與 integrity_check、WAL checkpoint（ADR-003/011）；新增 §9 TLS（ADR-008）；Chromium 容器 init/shm/sandbox 與 better-sqlite3 prebuilt（ADR-009）；install.sh admin bootstrap + SESSION_SECRET 隨機產生（ADR-006）；.env 新增 TLS/TZ/逾時/保留參數；升級採 expand-contract 與 schema 校驗、回滾語意；觀測補狀態頁/閾值告警/保留（ADR-011）；TZ=Asia/Taipei（ADR-010）。 |
+| v0.1.2 | 2026-07-02 | 新增 §2.1 連網側 GHCR 發布通道（ADR-012）：release-image workflow、`PULL_GHCR=1` 打包模式、compose `ACCESSIFY_IMAGE` 變數；Dockerfile base pin @sha256 digest。現場流程不變。 |

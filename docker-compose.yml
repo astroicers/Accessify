@@ -2,10 +2,12 @@
 # api 與 worker 共用同一映像與 data/reports volume（WAL 多讀單寫，busy_timeout 化解瞬間鎖）。
 # 執行期零對外：對外請求僅限掃描，且受 scan_whitelist + egress 政策把關。
 # 機密（TLS 金鑰、cookie 簽章金鑰）由 0600 secrets 檔注入，絕不寫入映像或本檔。
+# 映像名稱：現場預設 accessify（docker load 後）；連網側維護測試可設 ACCESSIFY_IMAGE=ghcr.io/astroicers/accessify
+#（ADR-012；現場嚴禁——執行期零對外，registry 不得成為現場依賴）。
 
 services:
   api:
-    image: accessify:${ACCESSIFY_TAG:-local}
+    image: ${ACCESSIFY_IMAGE:-accessify}:${ACCESSIFY_TAG:-local}
     build:
       context: .
       target: runtime
@@ -44,7 +46,7 @@ services:
       start_period: 20s
 
   worker:
-    image: accessify:${ACCESSIFY_TAG:-local}
+    image: ${ACCESSIFY_IMAGE:-accessify}:${ACCESSIFY_TAG:-local}
     build:
       context: .
       target: runtime
@@ -80,7 +82,7 @@ services:
   # 選用：基準站台 sidecar，供部署驗收 e2e（loopback 受 egress 永久封鎖，故需以非 loopback 主機名 'fixtures' 提供）。
   # 啟用後登入 Portal →「設定」頁將 fixtures 加入掃描白名單（白名單存於 DB，非環境變數）。正式部署可移除。
   # fixtures:
-  #   image: accessify:${ACCESSIFY_TAG:-local}
+  #   image: ${ACCESSIFY_IMAGE:-accessify}:${ACCESSIFY_TAG:-local}
   #   command: ["node", "scripts/serve-fixtures.mjs"]
   #   expose: ["8080"]
 

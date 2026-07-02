@@ -3,8 +3,7 @@
 set -euo pipefail
 IMAGE="${IMAGE:-accessify:0.1.0}"
 
-# 可重現性：正式交付請以固定 base digest（@sha256:...）取代 node:22 tag，
-# 並設 BuildKit reproducible 選項（SOURCE_DATE_EPOCH 等，見 ADR-002）。
+# 可重現性：Dockerfile base 已 pin @sha256 index digest（ADR-002/012；升版見 .asp-fact-check.md FC-003）。
 DOCKER_BUILDKIT=1 docker build -t "$IMAGE" .
 
 echo "built: $IMAGE"

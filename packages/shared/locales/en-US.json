@@ -61,7 +61,9 @@
     "current": "Current password",
     "new": "New password",
     "confirm": "Confirm new password",
-    "hint": "At least 12 characters; must differ from your username and current password",
+    "ruleLength": "At least 12 characters",
+    "ruleDiffers": "Differs from your username and current password",
+    "ruleMatch": "Both new password entries match",
     "submit": "Change password",
     "changed": "Password changed"
   },
