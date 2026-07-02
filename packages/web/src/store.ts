@@ -1,13 +1,24 @@
 // 前端狀態（zustand）— 認證 session（DOM 與資料層唯一橋樑，visual-web-stack 鐵則）
 
 import { create } from 'zustand';
-import { api, getToken, setToken, getRole, setRole } from './lib/api.js';
+import {
+  api,
+  getToken,
+  setToken,
+  getRole,
+  setRole,
+  getMustChange,
+  setMustChange,
+  getUsername,
+  setUsername,
+} from './lib/api.js';
 
 interface AuthState {
   token: string | null;
   role: string | null;
+  username: string | null;
   mustChange: boolean;
-  setAuth: (token: string, role: string, mustChange: boolean) => void;
+  setAuth: (token: string, role: string, mustChange: boolean, username: string) => void;
   clearMustChange: () => void;
   clear: () => void;
 }
@@ -15,17 +26,26 @@ interface AuthState {
 export const useAuth = create<AuthState>((set) => ({
   token: getToken(),
   role: getRole(),
-  mustChange: false,
-  setAuth: (token, role, mustChange) => {
+  username: getUsername(),
+  // 持久化（T801）：重整後強制改密 gate 仍生效
+  mustChange: getMustChange(),
+  setAuth: (token, role, mustChange, username) => {
     setToken(token);
     setRole(role);
-    set({ token, role, mustChange });
+    setMustChange(mustChange);
+    setUsername(username);
+    set({ token, role, mustChange, username });
   },
-  clearMustChange: () => set({ mustChange: false }),
+  clearMustChange: () => {
+    setMustChange(false);
+    set({ mustChange: false });
+  },
   clear: () => {
     setToken(null);
     setRole(null);
-    set({ token: null, role: null, mustChange: false });
+    setMustChange(false);
+    setUsername(null);
+    set({ token: null, role: null, mustChange: false, username: null });
   },
 }));
 

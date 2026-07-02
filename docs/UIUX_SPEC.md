@@ -53,7 +53,8 @@
 /scans/:id                 掃描結果：問題清單 + WCAG 對應 + 嚴重度 + 涵蓋率標示
 /reports                   報表清單與下載（HTML/PDF/Excel × zh-TW/en-US）
 /settings                  系統設定（admin）：白名單/速率/語言/排程/SMTP
-/admin/users               帳號管理（admin）
+/admin/users               帳號管理（admin）：建帳/角色/停用/重設密碼；一次性密碼僅顯示一次（aria-live 播報 + 複製）
+/change-password           變更密碼（Authenticated；mustChange 時為強制導向 gate，完成前不渲染其他頁）
 /status                    本地健康/狀態頁（Authenticated）
 ```
 

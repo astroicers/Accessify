@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### Added
+- **M8/T801 自助變更密碼 + 強制改密流程**（ADR-006 / FR-101）：`POST /api/auth/change-password`（內部重用 `authenticate` 走登入鎖定計數，杜絕持 token 者線上猜密；密碼政策 12–72 字元、≠帳號/現密；成功清 `must_change_password`、註銷其他 session、稽核 `auth.change_password[.fail]`）。前端 `/change-password` 頁 + `App.tsx` mustChange **硬 gate**（取代可關閉 banner——修復 v1.0.0「有強制改密旗標但無改密 API」的流程斷點）+ mustChange/username 持久化（防 F5 繞過）。`validateSession` 補 `status='active'` 檢查（停用者既有 session 立即失效）。
+- **M8/T802 帳號管理**（ADR-006 / FR-102/104；UIUX_SPEC `/admin/users` 落地）：`GET/POST /api/users`、`PUT /api/users/:id`、`POST /api/users/:id/reset-password`（全 admin、全稽核、i18n 錯誤鍵；清單絕不回傳 `password_hash`；一次性密碼僅回傳一次且不落稽核）。建帳未給密碼→一次性密碼（重用 bootstrap 產生器 `generateOneTimePassword`）；重設密碼兼作解鎖並清 session；**不可自我管理**（與 `requireRole(admin)` 共同保證至少一位 active admin，lastAdmin 409 為防禦縱深）；**不支援硬刪**（FK 無 ON DELETE + 稽核完整性，以停用取代）。`/admin/users` 頁：行內建帳、狀態/鎖定/須改密徽章、一次性密碼 `role="status"` 面板 + 複製、自己列不顯示操作鈕。
+- **M9/T901 ADR-012（Draft）**：GHCR 連網側映像發布通道決策草案（現場交付流程不變；待人工核准後實作 T902/T903）。
+- 驗證（M8）：`tsc -b`/`vite build`/eslint 綠、**127 unit tests**（+15：changePassword/OTP/session 清除/停用失效/users 四路由行為）、`node scripts/a11y-check.mjs` 全 Portal 頁（**含新增 ChangePassword、Users 兩頁**）× zh-TW/en-US × light/dark **0 WCAG 2.1 AA violations**。
+
+### Changed
+- i18n：移除 `login.mustChange`（其唯一消費者 MustChangeBanner 已由強制改密 gate 取代）；新增 `password.*`、`users.*`、`nav.users`、`nav.changePassword` 與帳號治理相關 `error.*` 鍵（zh-TW/en-US 同步）。
+
 ## [1.0.0] - 2026-06-25
 
 > 首個完整交付：地端離線（軍網）無障礙網頁檢測工具，M0–M7 共 8 milestone / 36 任務全數完成。

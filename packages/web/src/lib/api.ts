@@ -2,6 +2,8 @@
 
 const TOKEN_KEY = 'accessify.token';
 const ROLE_KEY = 'accessify.role';
+const MUSTCHANGE_KEY = 'accessify.mustChange';
+const USERNAME_KEY = 'accessify.username';
 
 export function getToken(): string | null {
   return typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
@@ -16,6 +18,22 @@ export function getRole(): string | null {
 export function setRole(role: string | null): void {
   if (role) localStorage.setItem(ROLE_KEY, role);
   else localStorage.removeItem(ROLE_KEY);
+}
+// 強制改密旗標須持久化：否則 F5 重整即遺失、gate 被繞過（T801）。
+export function getMustChange(): boolean {
+  return typeof localStorage !== 'undefined' && localStorage.getItem(MUSTCHANGE_KEY) === '1';
+}
+export function setMustChange(v: boolean): void {
+  if (v) localStorage.setItem(MUSTCHANGE_KEY, '1');
+  else localStorage.removeItem(MUSTCHANGE_KEY);
+}
+// 登入者帳號名（帳號管理頁辨識「自己」那列用；權威守衛在後端 selfManage）
+export function getUsername(): string | null {
+  return typeof localStorage === 'undefined' ? null : localStorage.getItem(USERNAME_KEY);
+}
+export function setUsername(v: string | null): void {
+  if (v) localStorage.setItem(USERNAME_KEY, v);
+  else localStorage.removeItem(USERNAME_KEY);
 }
 
 /** 報表下載 URL（同源；session cookie 授權，供 <a download> 使用）。 */
@@ -47,6 +65,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError(res.status, err.messageKey ?? 'error.unknown');
   }
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+}
+
+export interface PortalUser {
+  id: number;
+  username: string;
+  role: 'admin' | 'viewer';
+  status: 'active' | 'disabled';
+  locked: boolean;
+  must_change_password: number;
+  created_at: string;
 }
 
 export interface ScanTask {
@@ -121,6 +149,8 @@ export const api = {
       password,
     }),
   logout: () => request<{ ok: boolean }>('POST', '/api/auth/logout'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: boolean }>('POST', '/api/auth/change-password', { currentPassword, newPassword }),
   listScans: () => request<ScanTask[]>('GET', '/api/scans'),
   createScan: (target: string, type: 'url' | 'sitemap') =>
     request<{ id: number; status: string }>('POST', '/api/scans', { target, type }),
@@ -133,6 +163,13 @@ export const api = {
       `/api/scans/${id}/reports`,
     ),
   getStatus: () => request<ServerStatus>('GET', '/api/status'),
+  listUsers: () => request<PortalUser[]>('GET', '/api/users'),
+  createUser: (body: { username: string; role: 'admin' | 'viewer'; password?: string }) =>
+    request<{ id: number; username: string; generatedPassword?: string }>('POST', '/api/users', body),
+  updateUser: (id: number, body: { role?: 'admin' | 'viewer'; status?: 'active' | 'disabled' }) =>
+    request<{ ok: boolean }>('PUT', `/api/users/${id}`, body),
+  resetUserPassword: (id: number) =>
+    request<{ generatedPassword: string }>('POST', `/api/users/${id}/reset-password`),
   getSettings: () => request<Record<string, string>>('GET', '/api/settings'),
   updateSettings: (body: Record<string, string>) => request<{ ok: boolean }>('PUT', '/api/settings', body),
   getDiff: (id: number) => request<ScanDiff>('GET', `/api/scans/${id}/diff`),

@@ -107,16 +107,23 @@
 |--------|------|------|------|
 | POST | `/api/auth/login` | Guest | 本地帳號登入 → session |
 | POST | `/api/auth/logout` | Auth | 登出 |
+| POST | `/api/auth/change-password` | Auth | 自助變更密碼（M8/T801：強制改密流程；政策 12–72 字元、≠帳號/現密；錯誤現密走登入鎖定計數；成功後註銷其他 session） |
 | GET | `/api/scans` | Auth | 掃描任務清單 |
 | POST | `/api/scans` | admin | 建立掃描任務（target, type）→ 入列 |
 | GET | `/api/scans/:id` | Auth | 任務狀態與結果摘要 |
 | GET | `/api/scans/:id/issues` | Auth | 問題清單（分頁/篩選） |
 | GET | `/api/reports/:id` | Auth | 下載報表（lang, format） |
 | GET/PUT | `/api/settings` | admin | 讀取/更新系統設定 |
-| GET/POST/PUT | `/api/users` | admin | 帳號管理 |
+| GET/POST/PUT | `/api/users` | admin | 帳號管理（M8/T802：清單絕不含 password_hash；建帳未給密碼→一次性密碼僅回傳一次；不可自我管理；停用即註銷 session） |
+| POST | `/api/users/:id/reset-password` | admin | 重設密碼（一次性密碼僅回傳一次、強制下次改密、清 session、歸零鎖定計數兼作解鎖） |
 | GET | `/api/status` | Auth | 本地健康/狀態（worker 心跳、佇列積壓、最近失敗、磁碟用量、DB integrity、排程上次/下次、憑證到期天數）→ `/status` 頁 |
 
 通用：錯誤格式 `{ code, messageKey, detail }`（messageKey 對應 i18n）；所有變更型操作寫入 `audit_logs`。
+
+帳號管理不支援 `DELETE /api/users/:id`（刻意）：`users.id` 為 `scan_tasks.created_by` /
+`schedules.created_by` / `audit_logs.user_id` 之 FK（無 `ON DELETE` 子句），且稽核完整性要求保留
+帳號紀錄——以「停用」取代刪除。「至少一位 active admin」不變量由「不可自我管理」+
+`requireRole(admin)` 保證（lastAdmin 409 守衛為防禦縱深）。
 
 ---
 

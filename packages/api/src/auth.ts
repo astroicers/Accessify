@@ -7,6 +7,10 @@ import type { Db } from '@accessify/core';
 export type Role = 'admin' | 'viewer';
 
 const DEFAULT_COST = 12;
+
+/** 密碼政策（SRS password_policy: strong）：長度下限；上限 72 避開 bcrypt 位元組截斷。 */
+export const PASSWORD_MIN_LENGTH = 12;
+export const PASSWORD_MAX_LENGTH = 72;
 const nowIso = (): string => new Date().toISOString();
 const offsetIso = (ms: number): string => new Date(Date.now() + ms).toISOString();
 
@@ -96,6 +100,35 @@ export async function authenticate(
   };
 }
 
+/** 一次性隨機密碼（bootstrap 首位 admin 與 admin 建帳/重設共用；16 字元，滿足密碼政策）。 */
+export function generateOneTimePassword(): string {
+  return randomBytes(12).toString('base64url');
+}
+
+export interface ChangePasswordResult {
+  ok: boolean;
+  reason?: 'invalid' | 'locked' | 'disabled';
+}
+
+/** 自助改密（T801）：內部重用 authenticate，錯誤 currentPassword 走同一套鎖定計數（ADR-006）。 */
+export async function changePassword(
+  db: Db,
+  userId: number,
+  currentPassword: string,
+  newPassword: string,
+  opts: AuthOptions & { cost?: number } = {},
+): Promise<ChangePasswordResult> {
+  const row = db.prepare('SELECT username FROM users WHERE id = ?').get(userId) as
+    | { username: string }
+    | undefined;
+  if (!row) return { ok: false, reason: 'invalid' };
+  const r = await authenticate(db, row.username, currentPassword, opts);
+  if (!r.ok) return { ok: false, reason: r.reason };
+  const hash = await hashPassword(newPassword, opts.cost);
+  db.prepare('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?').run(hash, userId);
+  return { ok: true };
+}
+
 // ── server-side session（token 雜湊後儲存）──
 
 export function createSession(db: Db, userId: number, ttlMs = 30 * 60_000): string {
@@ -113,17 +146,29 @@ export function validateSession(db: Db, token: string): { userId: number; role: 
   const tokenHash = createHash('sha256').update(token).digest('hex');
   const row = db
     .prepare(
-      `SELECT s.user_id AS userId, s.expires_at AS expiresAt, u.role AS role
+      `SELECT s.user_id AS userId, s.expires_at AS expiresAt, u.role AS role, u.status AS status
        FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`,
     )
-    .get(tokenHash) as { userId: number; expiresAt: string; role: Role } | undefined;
-  if (!row || row.expiresAt <= nowIso()) return null;
+    .get(tokenHash) as { userId: number; expiresAt: string; role: Role; status: string } | undefined;
+  // 停用帳號的既有 session 立即失效（T802 防禦縱深；停用時亦會主動清 session）
+  if (!row || row.expiresAt <= nowIso() || row.status !== 'active') return null;
   return { userId: row.userId, role: row.role };
 }
 
 export function destroySession(db: Db, token: string): void {
   const tokenHash = createHash('sha256').update(token).digest('hex');
   db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
+}
+
+/** 改密成功後保留當前 session、註銷其餘（T801：任何遭竊/殘留 session 即失效）。 */
+export function destroyOtherSessions(db: Db, userId: number, keepToken: string): void {
+  const keepHash = createHash('sha256').update(keepToken).digest('hex');
+  db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, keepHash);
+}
+
+/** 註銷使用者全部 session（停用帳號、admin 重設密碼時使用）。 */
+export function destroyUserSessions(db: Db, userId: number): void {
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
 }
 
 /** RBAC：admin 可做 viewer 能做的事；viewer 不能做 admin 的事。 */
