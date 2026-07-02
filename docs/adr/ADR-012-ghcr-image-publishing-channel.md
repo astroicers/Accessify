@@ -134,7 +134,14 @@ GHCR 隨 repo 免維運即得同等能力。否決。
 - `grep -ril ghcr docs/RUNBOOK.md docs/ACCEPTANCE.md scripts/install.sh scripts/upgrade.sh scripts/rollback.sh` 為空（現場零 GHCR 引用）。
 - base digest 查證：`.asp-fact-check.md` FC-003（Docker Hub API 即時查詢）。
 
-**待首次發布回填（🟡 需連網側 + docker 環境）：**
-- 首次 workflow 執行連結（push main → `edge`；push tag → semver/`latest`）。
+**首次建置（2026-07-02，run 28572558716）：❌ 失敗——即為本通道的價值實證：**
+- 失敗根因：Dockerfile deps stage 於 `NODE_ENV=production` 下 `npm ci` 略過 devDeps，
+  `playwright` bin link 因與 `@playwright/test` 同名衝突而缺失（exit 127）；build stage 的
+  tsc/vite（devDeps）為第二地雷。此 Dockerfile 在無 docker daemon 的開發環境從未完整建置過，
+  首次 CI 權威建置即揭露——正是選項 B（僅本機建置）「建置漂移不可稽核」風險的實例。
+- 修復：deps `--include=dev` + 新增 proddeps stage（`--omit=dev`）供 runtime，見 CHANGELOG。
+
+**待成功發布回填（🟡 需連網側 + docker 環境）：**
+- 首次成功 workflow 執行連結（push main → `edge`；push tag → semver/`latest`）。
 - `PULL_GHCR=1` 打包之 image ID 與 GHCR digest 比對輸出。
 - 交付包於乾淨機 `install.sh` + `verify.sh` 通過（流程與 v1.0.0 相同）。

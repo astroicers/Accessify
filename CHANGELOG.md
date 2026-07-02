@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Dockerfile 建置分層（首次 CI 建置揭露，run 28572558716）**：base 的 `NODE_ENV=production` 使 `npm ci` 略過 devDeps——(1) `playwright` bin 名與 root devDeps `@playwright/test` 衝突，略過後 `.bin/playwright` link 消失 → `npx playwright install` 以 exit 127 失敗；(2) build stage 的 `tsc`/`vite` 亦為 devDeps、必然接著失敗。修復：deps stage 改 `npm ci --include=dev`（供 build 與 Playwright CLI），新增 `proddeps` stage `npm ci --omit=dev`，runtime 改自 `proddeps` 取 node_modules（映像不含 devDeps）。本地以 lockfile 模擬安裝驗證 bin link 行為；權威驗證為 CI 實際建置。
+
 ### Added
 - **M8/T801 自助變更密碼 + 強制改密流程**（ADR-006 / FR-101）：`POST /api/auth/change-password`（內部重用 `authenticate` 走登入鎖定計數，杜絕持 token 者線上猜密；密碼政策 12–72 字元、≠帳號/現密；成功清 `must_change_password`、註銷其他 session、稽核 `auth.change_password[.fail]`）。前端 `/change-password` 頁 + `App.tsx` mustChange **硬 gate**（取代可關閉 banner——修復 v1.0.0「有強制改密旗標但無改密 API」的流程斷點）+ mustChange/username 持久化（防 F5 繞過）。`validateSession` 補 `status='active'` 檢查（停用者既有 session 立即失效）。
 - **M8/T802 帳號管理**（ADR-006 / FR-102/104；UIUX_SPEC `/admin/users` 落地）：`GET/POST /api/users`、`PUT /api/users/:id`、`POST /api/users/:id/reset-password`（全 admin、全稽核、i18n 錯誤鍵；清單絕不回傳 `password_hash`；一次性密碼僅回傳一次且不落稽核）。建帳未給密碼→一次性密碼（重用 bootstrap 產生器 `generateOneTimePassword`）；重設密碼兼作解鎖並清 session；**不可自我管理**（與 `requireRole(admin)` 共同保證至少一位 active admin，lastAdmin 409 為防禦縱深）；**不支援硬刪**（FK 無 ON DELETE + 稽核完整性，以停用取代）。`/admin/users` 頁：行內建帳、狀態/鎖定/須改密徽章、一次性密碼 `role="status"` 面板 + 複製、自己列不顯示操作鈕。
