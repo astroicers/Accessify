@@ -22,6 +22,182 @@ async function login(app: ReturnType<typeof buildServer>, username: string, pass
   return r.json().token as string;
 }
 
+describe('自助改密（T801 / FR-101 / ADR-006）', () => {
+  it('change-password：未登入 401；政策違規 400（過短/等於帳號/等於現密）；錯誤現密 401', async () => {
+    const { db, app, adminPw } = await setup();
+    const url = '/api/auth/change-password';
+    expect(
+      (await app.inject({ method: 'POST', url, payload: { currentPassword: 'x', newPassword: 'y'.repeat(12) } })).statusCode,
+    ).toBe(401);
+    const h = { authorization: `Bearer ${await login(app, 'admin', adminPw)}` };
+    const short = await app.inject({ method: 'POST', url, headers: h, payload: { currentPassword: adminPw, newPassword: 'short' } });
+    expect(short.statusCode).toBe(400);
+    expect(short.json().messageKey).toBe('error.passwordPolicy');
+    // 新密碼等於帳號名（不分大小寫）→ 政策拒絕
+    await createUser(db, { username: 'longname.user1', password: 'pw', role: 'viewer', cost: 6 });
+    const uh = { authorization: `Bearer ${await login(app, 'longname.user1', 'pw')}` };
+    const sameAsName = await app.inject({ method: 'POST', url, headers: uh, payload: { currentPassword: 'pw', newPassword: 'LONGNAME.USER1' } });
+    expect(sameAsName.statusCode).toBe(400);
+    expect(sameAsName.json().messageKey).toBe('error.passwordPolicy');
+    const same = await app.inject({ method: 'POST', url, headers: h, payload: { currentPassword: adminPw, newPassword: adminPw } });
+    expect(same.statusCode).toBe(400);
+    expect(same.json().messageKey).toBe('error.passwordSame');
+    const wrong = await app.inject({ method: 'POST', url, headers: h, payload: { currentPassword: 'totally-wrong-pw', newPassword: 'valid-new-pass-01' } });
+    expect(wrong.statusCode).toBe(401);
+    expect(wrong.json().messageKey).toBe('error.wrongPassword');
+  });
+
+  it('change-password 成功：舊密失效、新密可登入且 mustChange 清除、其他 session 失效、當前保留、寫入稽核', async () => {
+    const { db, app } = await setup();
+    await createUser(db, { username: 'cu', password: 'pw', role: 'viewer', mustChangePassword: true, cost: 6 });
+    const t1 = await login(app, 'cu', 'pw');
+    const t2 = await login(app, 'cu', 'pw');
+    const h1 = { authorization: `Bearer ${t1}` };
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: h1,
+      payload: { currentPassword: 'pw', newPassword: 'brand-new-pass-01' },
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(
+      (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'cu', password: 'pw' } })).statusCode,
+    ).toBe(401);
+    const relogin = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'cu', password: 'brand-new-pass-01' } });
+    expect(relogin.statusCode).toBe(200);
+    expect(relogin.json().mustChangePassword).toBe(false);
+    expect((await app.inject({ method: 'GET', url: '/api/scans', headers: { authorization: `Bearer ${t2}` } })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'GET', url: '/api/scans', headers: h1 })).statusCode).toBe(200);
+    const audit = db.prepare("SELECT COUNT(*) AS c FROM audit_logs WHERE action = 'auth.change_password'").get() as { c: number };
+    expect(audit.c).toBe(1);
+  });
+});
+
+describe('帳號管理（T802 / FR-101/102/104 / ADR-006）', () => {
+  it('users 清單：viewer 403；admin 200、含 locked 布林、絕不含 password_hash', async () => {
+    const { db, app, adminPw } = await setup();
+    await createUser(db, { username: 'v1', password: 'pw', role: 'viewer', cost: 6 });
+    const vh = { authorization: `Bearer ${await login(app, 'v1', 'pw')}` };
+    expect((await app.inject({ method: 'GET', url: '/api/users', headers: vh })).statusCode).toBe(403);
+    const ah = { authorization: `Bearer ${await login(app, 'admin', adminPw)}` };
+    const r = await app.inject({ method: 'GET', url: '/api/users', headers: ah });
+    expect(r.statusCode).toBe(200);
+    const list = r.json() as Array<Record<string, unknown>>;
+    expect(list.length).toBe(2);
+    expect(r.body).not.toContain('password_hash');
+    const v = list.find((u) => u.username === 'v1')!;
+    expect(v.role).toBe('viewer');
+    expect(v.locked).toBe(false);
+  });
+
+  it('users 建立：指定密碼可登入；未給密碼回一次性密碼且強制改密；弱密/非法名/重複/403 皆拒絕；寫入稽核', async () => {
+    const { db, app, adminPw } = await setup();
+    const ah = { authorization: `Bearer ${await login(app, 'admin', adminPw)}` };
+    const url = '/api/users';
+    // 指定密碼（滿足政策）→ 201 並可登入、無強制改密
+    const withPw = await app.inject({
+      method: 'POST', url, headers: ah,
+      payload: { username: 'op1', role: 'viewer', password: 'operator-pass-01' },
+    });
+    expect(withPw.statusCode).toBe(201);
+    expect(withPw.json().generatedPassword).toBeUndefined();
+    const l1 = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'op1', password: 'operator-pass-01' } });
+    expect(l1.statusCode).toBe(200);
+    expect(l1.json().mustChangePassword).toBe(false);
+    // 未給密碼 → 回傳一次性密碼（僅此一次）、登入後 mustChangePassword=true
+    const gen = await app.inject({ method: 'POST', url, headers: ah, payload: { username: 'op2', role: 'admin' } });
+    expect(gen.statusCode).toBe(201);
+    const otp = gen.json().generatedPassword as string;
+    expect(otp.length).toBeGreaterThanOrEqual(12);
+    const l2 = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'op2', password: otp } });
+    expect(l2.statusCode).toBe(200);
+    expect(l2.json().mustChangePassword).toBe(true);
+    // 弱密碼 → 400 政策；非法 username → 400；重複 → 409
+    expect((await app.inject({ method: 'POST', url, headers: ah, payload: { username: 'op3', role: 'viewer', password: 'short' } })).json().messageKey).toBe('error.passwordPolicy');
+    expect((await app.inject({ method: 'POST', url, headers: ah, payload: { username: 'bad name!', role: 'viewer' } })).json().messageKey).toBe('error.invalidUsername');
+    expect((await app.inject({ method: 'POST', url, headers: ah, payload: { username: 'op1', role: 'viewer' } })).statusCode).toBe(409);
+    // viewer 403
+    const vh = { authorization: `Bearer ${await login(app, 'op1', 'operator-pass-01')}` };
+    expect((await app.inject({ method: 'POST', url, headers: vh, payload: { username: 'x9', role: 'viewer' } })).statusCode).toBe(403);
+    // 稽核含 user.create、且 detail 不含一次性密碼
+    const audits = db.prepare("SELECT detail FROM audit_logs WHERE action = 'user.create'").all() as Array<{ detail: string | null }>;
+    expect(audits.length).toBe(2);
+    for (const a of audits) expect(a.detail ?? '').not.toContain(otp);
+  });
+
+  it('users 更新：改 role 即時生效；停用即殺 session 且無法再登入；selfManage 400；不存在 404；寫入稽核', async () => {
+    const { db, app, adminPw } = await setup();
+    const ah = { authorization: `Bearer ${await login(app, 'admin', adminPw)}` };
+    const uid = await createUser(db, { username: 'v2', password: 'pw', role: 'viewer', cost: 6 });
+    const vt = await login(app, 'v2', 'pw');
+    const vhdr = { authorization: `Bearer ${vt}` };
+    // viewer 無法進 /api/settings
+    expect((await app.inject({ method: 'GET', url: '/api/settings', headers: vhdr })).statusCode).toBe(403);
+    // 升 admin → 既有 session 即時取得權限（role 逐請求讀 users 表）
+    expect(
+      (await app.inject({ method: 'PUT', url: `/api/users/${uid}`, headers: ah, payload: { role: 'admin' } })).statusCode,
+    ).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/api/settings', headers: vhdr })).statusCode).toBe(200);
+    // 降回 viewer + 停用 → session 立即失效、再登入 401
+    expect(
+      (await app.inject({ method: 'PUT', url: `/api/users/${uid}`, headers: ah, payload: { role: 'viewer', status: 'disabled' } })).statusCode,
+    ).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/api/scans', headers: vhdr })).statusCode).toBe(401);
+    expect(
+      (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'v2', password: 'pw' } })).statusCode,
+    ).toBe(401);
+    // 對自己操作 → 400 selfManage。
+    // 「至少一位 active admin」不變量由此守衛 + requireRole(admin) 共同保證：
+    // 唯一 active admin 經 API 只可能被自己變更，而自己已被 selfManage 擋（lastAdmin 409 為防禦縱深）。
+    const adminId = (db.prepare("SELECT id FROM users WHERE username = 'admin'").get() as { id: number }).id;
+    const self = await app.inject({ method: 'PUT', url: `/api/users/${adminId}`, headers: ah, payload: { role: 'viewer' } });
+    expect(self.statusCode).toBe(400);
+    expect(self.json().messageKey).toBe('error.selfManage');
+    // 不存在 → 404
+    expect(
+      (await app.inject({ method: 'PUT', url: '/api/users/999', headers: ah, payload: { role: 'viewer' } })).statusCode,
+    ).toBe(404);
+    // 稽核：兩次成功更新
+    const audit = db.prepare("SELECT COUNT(*) AS c FROM audit_logs WHERE action = 'user.update'").get() as { c: number };
+    expect(audit.c).toBe(2);
+  });
+
+  it('users 重設密碼：舊密失效、一次性密碼可登入且強制改密、session 清空、鎖定歸零（兼解鎖）；self 400；不存在 404；稽核', async () => {
+    const { db, app, adminPw } = await setup();
+    const ah = { authorization: `Bearer ${await login(app, 'admin', adminPw)}` };
+    const uid = await createUser(db, { username: 'v4', password: 'pw', role: 'viewer', cost: 6 });
+    const vt = await login(app, 'v4', 'pw');
+    // 先把帳號打到鎖定（5 次錯密）
+    for (let i = 0; i < 5; i++) {
+      await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'v4', password: 'nope' } });
+    }
+    expect(
+      (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'v4', password: 'pw' } })).statusCode,
+    ).toBe(401);
+    // admin 重設 → 回一次性密碼；session 清空；鎖定/計數歸零
+    const r = await app.inject({ method: 'POST', url: `/api/users/${uid}/reset-password`, headers: ah });
+    expect(r.statusCode).toBe(200);
+    const otp = r.json().generatedPassword as string;
+    expect(otp.length).toBeGreaterThanOrEqual(12);
+    expect((await app.inject({ method: 'GET', url: '/api/scans', headers: { authorization: `Bearer ${vt}` } })).statusCode).toBe(401);
+    expect(
+      (await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'v4', password: 'pw' } })).statusCode,
+    ).toBe(401);
+    const relogin = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'v4', password: otp } });
+    expect(relogin.statusCode).toBe(200);
+    expect(relogin.json().mustChangePassword).toBe(true);
+    // self → 400；不存在 → 404
+    const adminId = (db.prepare("SELECT id FROM users WHERE username = 'admin'").get() as { id: number }).id;
+    expect((await app.inject({ method: 'POST', url: `/api/users/${adminId}/reset-password`, headers: ah })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'POST', url: '/api/users/999/reset-password', headers: ah })).statusCode).toBe(404);
+    // 稽核含 user.reset_password 且不含一次性密碼
+    const audits = db.prepare("SELECT detail FROM audit_logs WHERE action = 'user.reset_password'").all() as Array<{ detail: string | null }>;
+    expect(audits.length).toBe(1);
+    expect(audits[0]?.detail ?? '').not.toContain(otp);
+  });
+
+});
+
 describe('REST API（T502 / FR-206）', () => {
   it('healthz + openapi 契約', async () => {
     const { app } = await setup();

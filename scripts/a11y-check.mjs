@@ -30,6 +30,12 @@ const STUBS = {
   '/api/scans/1/reports': [{ id: 1, lang: 'zh-TW', format: 'html', created_at: 'x' }],
   '/api/scans/1/diff': { scanTaskId: 1, baselineScanId: 5, fixed: [], added: [{ pageUrl: 'http://intra.mil/', wcagRef: '1.4.3', ruleCode: 'c', severity: 'medium', selector: '.x', message: 'm' }], unchanged: [] },
   '/api/settings': { scan_whitelist: 'intra.mil' },
+  // 帳號管理（T802）：涵蓋 locked / disabled / must-change 各狀態徽章與「自己」列
+  '/api/users': [
+    { id: 1, username: 'admin', role: 'admin', status: 'active', locked: false, must_change_password: 0, created_at: '2026-06-25 10:00:00' },
+    { id: 2, username: 'viewer1', role: 'viewer', status: 'active', locked: true, must_change_password: 1, created_at: '2026-06-25 10:00:00' },
+    { id: 3, username: 'op2', role: 'viewer', status: 'disabled', locked: false, must_change_password: 0, created_at: '2026-06-25 10:00:00' },
+  ],
   '/api/schedules': [{ id: 1, target: 'https://intra.mil/', type: 'url', interval_seconds: 86400, enabled: 1, last_run_at: null, next_run_at: '2026-06-26 10:00:00', created_at: 'x' }],
   '/api/notifications': [{ id: 1, kind: 'new_issues', scan_task_id: 1, message_key: 'notifications.msgNewIssues', params_json: JSON.stringify({ target: 'https://intra.mil/', count: 3 }), read: 0, created_at: '2026-06-25 10:00:00' }],
   '/api/notifications/unread-count': { count: 1 },
@@ -45,6 +51,8 @@ const PAGES = [
   { label: 'Notifications', hash: '#/notifications', auth: true },
   { label: 'Settings', hash: '#/settings', auth: true },
   { label: 'Status', hash: '#/status', auth: true },
+  { label: 'ChangePassword', hash: '#/change-password', auth: true },
+  { label: 'Users', hash: '#/admin/users', auth: true },
 ];
 
 const browser = await chromium.launch();
@@ -53,7 +61,7 @@ for (const variant of [{ lang: 'zh-TW', dark: false }, { lang: 'en-US', dark: tr
   for (const pg of PAGES) {
     const ctx = await browser.newContext();
     await ctx.addInitScript(([auth, lang, dark]) => {
-      if (auth) { localStorage.setItem('accessify.token', 'stub'); localStorage.setItem('accessify.role', 'admin'); }
+      if (auth) { localStorage.setItem('accessify.token', 'stub'); localStorage.setItem('accessify.role', 'admin'); localStorage.setItem('accessify.username', 'admin'); }
       if (lang) localStorage.setItem('accessify.lang', lang);
       if (dark) localStorage.setItem('theme', 'dark');
     }, [pg.auth, variant.lang, variant.dark]);

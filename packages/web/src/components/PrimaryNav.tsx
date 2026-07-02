@@ -66,6 +66,14 @@ export function PrimaryNav() {
           {t('nav.settings')}
         </a>
       )}
+      {role === 'admin' && (
+        <a href="#/admin/users" aria-current={current('/admin/users')} className={LINK}>
+          {t('nav.users')}
+        </a>
+      )}
+      <a href="#/change-password" aria-current={current('/change-password')} className={LINK}>
+        {t('nav.changePassword')}
+      </a>
       <button
         type="button"
         onClick={logout}

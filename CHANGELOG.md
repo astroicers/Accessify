@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+### Added
+- **M8/T801 自助變更密碼 + 強制改密流程**（ADR-006 / FR-101）：`POST /api/auth/change-password`（內部重用 `authenticate` 走登入鎖定計數，杜絕持 token 者線上猜密；密碼政策 12–72 字元、≠帳號/現密；成功清 `must_change_password`、註銷其他 session、稽核 `auth.change_password[.fail]`）。前端 `/change-password` 頁 + `App.tsx` mustChange **硬 gate**（取代可關閉 banner——修復 v1.0.0「有強制改密旗標但無改密 API」的流程斷點）+ mustChange/username 持久化（防 F5 繞過）。`validateSession` 補 `status='active'` 檢查（停用者既有 session 立即失效）。
+- **M8/T802 帳號管理**（ADR-006 / FR-102/104；UIUX_SPEC `/admin/users` 落地）：`GET/POST /api/users`、`PUT /api/users/:id`、`POST /api/users/:id/reset-password`（全 admin、全稽核、i18n 錯誤鍵；清單絕不回傳 `password_hash`；一次性密碼僅回傳一次且不落稽核）。建帳未給密碼→一次性密碼（重用 bootstrap 產生器 `generateOneTimePassword`）；重設密碼兼作解鎖並清 session；**不可自我管理**（與 `requireRole(admin)` 共同保證至少一位 active admin，lastAdmin 409 為防禦縱深）；**不支援硬刪**（FK 無 ON DELETE + 稽核完整性，以停用取代）。`/admin/users` 頁：行內建帳、狀態/鎖定/須改密徽章、一次性密碼 `role="status"` 面板 + 複製、自己列不顯示操作鈕。
+- **M9/T901 ADR-012（Accepted）**：GHCR 連網側映像發布通道決策（使用者 2026-07-02 經 `/asp:approve-adr 012` 二次確認直升；現場交付流程不變）。
+- **M9/T902 release-image workflow + base digest pin**（ADR-012）：`.github/workflows/release-image.yml`（獨立於 ci.yml、最小權限 `packages: write`；tag `v*` → semver/`latest`、main → `edge`、一律 `sha-<short>`；linux/amd64 only；provenance/SBOM off；gha cache）。`Dockerfile` base pin `node:22-bookworm-slim@sha256:813a7480…`（index digest；查證紀錄 `.asp-fact-check.md` FC-003）。
+- **M9/T903 離線打包整合 GHCR**（ADR-012）：`package-offline.sh` 新增 `PULL_GHCR=1` 模式（pull CI 權威映像 → retag `accessify:<tag>` → 原有 `docker save` 路徑；**預設模式與現場 install/upgrade 腳本零改動**）；compose `image: ${ACCESSIFY_IMAGE:-accessify}:${ACCESSIFY_TAG:-local}`；`.env.example` 註記（現場嚴禁設 ghcr.io）；DEPLOY_SPEC §2.1；README 連網側說明；RUNBOOK/install/upgrade/rollback/ACCEPTANCE **零 GHCR 引用**（grep 驗證）。
+- 驗證（M8）：`tsc -b`/`vite build`/eslint 綠、**127 unit tests**（+15：changePassword/OTP/session 清除/停用失效/users 四路由行為）、`node scripts/a11y-check.mjs` 全 Portal 頁（**含新增 ChangePassword、Users 兩頁**）× zh-TW/en-US × light/dark **0 WCAG 2.1 AA violations**。
+
+### Changed
+- i18n：移除 `login.mustChange`（其唯一消費者 MustChangeBanner 已由強制改密 gate 取代）；新增 `password.*`、`users.*`、`nav.users`、`nav.changePassword` 與帳號治理相關 `error.*` 鍵（zh-TW/en-US 同步）。
+- **UI 打磨（visual-web-stack / frontend-design 規範）**：ChangePassword 改卡片式聚焦布局 + forced 模式琥珀提示帶 + **密碼政策即時 checklist**（達成 ✓ 綠／未達成 ○ 灰，符號+顏色雙通道，取代靜態 hint；`password.rule*` 鍵雙語）；Users 頁建帳卡片、角色徽章（admin 實心／viewer 外框）、狀態 ●/○、表格容器化 + hover、一次性密碼改**憑證卡**（虛線框、等寬字距、入場強調）。動效為 CSS-only（僅 transform/opacity、零新依賴、`prefers-reduced-motion` 全域兜底歸零，ADR-005）。a11y-check 仍 **0 violations**。
+
 ## [1.0.0] - 2026-06-25
 
 > 首個完整交付：地端離線（軍網）無障礙網頁檢測工具，M0–M7 共 8 milestone / 36 任務全數完成。

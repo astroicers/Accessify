@@ -18,7 +18,7 @@ export function Login() {
     setPending(true);
     try {
       const r = await api.login(username, password);
-      setAuth(r.token, r.role, r.mustChangePassword);
+      setAuth(r.token, r.role, r.mustChangePassword, username);
       navigate('/');
     } catch (err) {
       setError(err instanceof ApiError ? err.messageKey : 'error.unknown');

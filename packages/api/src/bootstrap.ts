@@ -1,9 +1,8 @@
 // @accessify/api/bootstrap — 首位 admin 離線 bootstrap（T506 / ADR-006）
 // 無固定預設密碼：未提供則產生一次性隨機密碼並強制首登改密。
 
-import { randomBytes } from 'node:crypto';
 import type { Db } from '@accessify/core';
-import { createUser } from './auth.js';
+import { createUser, generateOneTimePassword } from './auth.js';
 
 export interface EnsureAdminInput {
   username?: string;
@@ -27,7 +26,7 @@ export async function ensureAdmin(db: Db, input: EnsureAdminInput = {}): Promise
   if (count > 0) return { created: false };
 
   const username = input.username ?? 'admin';
-  const generated = input.password ? undefined : randomBytes(12).toString('base64url');
+  const generated = input.password ? undefined : generateOneTimePassword();
   const password = input.password ?? generated!;
   await createUser(db, {
     username,

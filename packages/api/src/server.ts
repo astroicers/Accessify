@@ -23,10 +23,18 @@ import {
 } from '@accessify/core';
 import {
   authenticate,
+  changePassword,
   createSession,
+  createUser,
   destroySession,
+  destroyOtherSessions,
+  destroyUserSessions,
+  generateOneTimePassword,
+  hashPassword,
   validateSession,
   hasRole,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_MAX_LENGTH,
   type Role,
 } from './auth.js';
 import { collectStatus } from './status.js';
@@ -195,6 +203,219 @@ export function buildServer(deps: ServerDeps): FastifyInstance {
     void reply.clearCookie('session', { path: '/' });
     return { ok: true };
   });
+
+  // ── 自助變更密碼（T801 / FR-101 / ADR-006）──
+  // 政策檢查於 handler（非 JSON schema）以回傳 i18n messageKey；上限 72 避開 bcrypt 截斷。
+  // 錯誤 currentPassword 內部走 authenticate 的鎖定計數，杜絕持 token 者的線上猜密。
+  app.post(
+    '/api/auth/change-password',
+    {
+      preHandler: requireAuth,
+      schema: {
+        body: {
+          type: 'object',
+          required: ['currentPassword', 'newPassword'],
+          properties: { currentPassword: { type: 'string' }, newPassword: { type: 'string' } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const { currentPassword, newPassword } = req.body as {
+        currentPassword: string;
+        newPassword: string;
+      };
+      const userId = req.user!.userId;
+      const u = db.prepare('SELECT username FROM users WHERE id = ?').get(userId) as {
+        username: string;
+      };
+      if (
+        newPassword.length < PASSWORD_MIN_LENGTH ||
+        newPassword.length > PASSWORD_MAX_LENGTH ||
+        newPassword.toLowerCase() === u.username.toLowerCase()
+      ) {
+        return reply.code(400).send({ code: 'password_policy', messageKey: 'error.passwordPolicy' });
+      }
+      if (newPassword === currentPassword) {
+        return reply.code(400).send({ code: 'password_same', messageKey: 'error.passwordSame' });
+      }
+      const r = await changePassword(db, userId, currentPassword, newPassword);
+      if (!r.ok) {
+        writeAudit(db, { userId, action: 'auth.change_password.fail', resource: `user:${userId}` });
+        return r.reason === 'locked'
+          ? reply.code(401).send({ code: 'locked', messageKey: 'error.accountLocked' })
+          : reply.code(401).send({ code: 'invalid', messageKey: 'error.wrongPassword' });
+      }
+      destroyOtherSessions(db, userId, tokenOf(req)!);
+      writeAudit(db, { userId, action: 'auth.change_password', resource: `user:${userId}` });
+      return { ok: true };
+    },
+  );
+
+  // ── 帳號管理（T802 / FR-101/102/104 / ADR-006）：全 admin、全稽核。──
+  // 不支援硬刪：users.id 為 scan_tasks/schedules/audit_logs 之 FK（無 ON DELETE），且稽核完整性要求保留；以停用取代。
+  app.get('/api/users', { preHandler: [requireAuth, requireRole('admin')] }, async () => {
+    const rows = db
+      .prepare(
+        `SELECT id, username, role, status, locked_until, must_change_password, created_at
+         FROM users ORDER BY id`,
+      )
+      .all() as Array<{
+      id: number;
+      username: string;
+      role: Role;
+      status: string;
+      locked_until: string | null;
+      must_change_password: number;
+      created_at: string;
+    }>;
+    const now = new Date().toISOString();
+    // 絕不回傳 password_hash；locked_until 轉為布林（前端不需要精確到期時間）
+    return rows.map(({ locked_until: lockedUntil, ...u }) => ({
+      ...u,
+      locked: lockedUntil != null && lockedUntil > now,
+    }));
+  });
+
+  app.post(
+    '/api/users',
+    {
+      preHandler: [requireAuth, requireRole('admin')],
+      schema: {
+        body: {
+          type: 'object',
+          required: ['username', 'role'],
+          properties: {
+            username: { type: 'string' },
+            role: { type: 'string', enum: ['admin', 'viewer'] },
+            password: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const { username, role, password } = req.body as {
+        username: string;
+        role: Role;
+        password?: string;
+      };
+      // username 格式於 handler 檢查以回傳 i18n messageKey
+      if (!/^[a-z0-9._-]{1,64}$/i.test(username)) {
+        return reply.code(400).send({ code: 'invalid_username', messageKey: 'error.invalidUsername' });
+      }
+      if (
+        password !== undefined &&
+        (password.length < PASSWORD_MIN_LENGTH ||
+          password.length > PASSWORD_MAX_LENGTH ||
+          password.toLowerCase() === username.toLowerCase())
+      ) {
+        return reply.code(400).send({ code: 'password_policy', messageKey: 'error.passwordPolicy' });
+      }
+      const exists = db.prepare('SELECT 1 FROM users WHERE username = ?').get(username);
+      if (exists) {
+        return reply.code(409).send({ code: 'user_exists', messageKey: 'error.userExists' });
+      }
+      // 未指定密碼 → 產生一次性密碼（僅於本回應出現一次），並強制首次登入改密
+      const generated = password === undefined ? generateOneTimePassword() : undefined;
+      const id = await createUser(db, {
+        username,
+        password: password ?? generated!,
+        role,
+        mustChangePassword: password === undefined,
+      });
+      // 稽核僅記角色，絕不寫入任何密碼內容
+      writeAudit(db, {
+        userId: req.user!.userId,
+        action: 'user.create',
+        resource: `user:${id}`,
+        detail: `role=${role}`,
+      });
+      return reply.code(201).send({ id, username, ...(generated ? { generatedPassword: generated } : {}) });
+    },
+  );
+
+  app.put(
+    '/api/users/:id',
+    {
+      preHandler: [requireAuth, requireRole('admin')],
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            role: { type: 'string', enum: ['admin', 'viewer'] },
+            status: { type: 'string', enum: ['active', 'disabled'] },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const id = Number((req.params as { id: string }).id);
+      const { role, status } = req.body as { role?: Role; status?: string };
+      const target = db.prepare('SELECT id, role, status FROM users WHERE id = ?').get(id) as
+        | { id: number; role: Role; status: string }
+        | undefined;
+      if (!target) {
+        return reply.code(404).send({ code: 'not_found', messageKey: 'error.notFound' });
+      }
+      // 不可自我管理（改自己密碼走 change-password；角色/狀態由另一位 admin 管理），
+      // 並與 requireRole(admin) 共同保證「至少一位 active admin」不變量。
+      if (id === req.user!.userId) {
+        return reply.code(400).send({ code: 'self_manage', messageKey: 'error.selfManage' });
+      }
+      // 防禦縱深：降級/停用「最後一位 active admin」→ 409（正常路徑已被 selfManage 擋下）
+      const demoting = target.role === 'admin' && target.status === 'active' && (role === 'viewer' || status === 'disabled');
+      if (demoting) {
+        const others = db
+          .prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND status = 'active' AND id != ?")
+          .get(id) as { c: number };
+        if (others.c === 0) {
+          return reply.code(409).send({ code: 'last_admin', messageKey: 'error.lastAdmin' });
+        }
+      }
+      const changed: string[] = [];
+      if (role !== undefined && role !== target.role) {
+        db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+        changed.push(`role=${role}`);
+      }
+      if (status !== undefined && status !== target.status) {
+        db.prepare('UPDATE users SET status = ? WHERE id = ?').run(status, id);
+        changed.push(`status=${status}`);
+        // 停用立即註銷該使用者全部 session（validateSession 另有 status 檢查作縱深）
+        if (status === 'disabled') destroyUserSessions(db, id);
+      }
+      writeAudit(db, {
+        userId: req.user!.userId,
+        action: 'user.update',
+        resource: `user:${id}`,
+        detail: changed.join(',') || null,
+      });
+      return { ok: true };
+    },
+  );
+
+  app.post(
+    '/api/users/:id/reset-password',
+    { preHandler: [requireAuth, requireRole('admin')] },
+    async (req, reply) => {
+      const id = Number((req.params as { id: string }).id);
+      const target = db.prepare('SELECT id FROM users WHERE id = ?').get(id) as { id: number } | undefined;
+      if (!target) {
+        return reply.code(404).send({ code: 'not_found', messageKey: 'error.notFound' });
+      }
+      if (id === req.user!.userId) {
+        return reply.code(400).send({ code: 'self_manage', messageKey: 'error.selfManage' });
+      }
+      // 產生一次性密碼（僅於本回應出現一次）、強制下次登入改密；
+      // 同時清鎖定/失敗計數（兼作解鎖機制）並註銷該使用者全部 session。
+      const generated = generateOneTimePassword();
+      const hash = await hashPassword(generated);
+      db.prepare(
+        'UPDATE users SET password_hash = ?, must_change_password = 1, failed_attempts = 0, locked_until = NULL WHERE id = ?',
+      ).run(hash, id);
+      destroyUserSessions(db, id);
+      writeAudit(db, { userId: req.user!.userId, action: 'user.reset_password', resource: `user:${id}` });
+      return { generatedPassword: generated };
+    },
+  );
 
   app.get('/api/scans', { preHandler: requireAuth }, async () =>
     db.prepare('SELECT id, target, type, status, created_at FROM scan_tasks ORDER BY id DESC').all(),

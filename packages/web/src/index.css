@@ -37,3 +37,32 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* 進場微動效（CSS-only，零新依賴；只動 transform/opacity，reduced-motion 由上方全域兜底歸零） */
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.anim-fade-rise {
+  animation: fade-rise 0.35s ease-out both;
+}
+/* 一次性密碼憑證卡的入場強調（僅顯示一次的儀式感） */
+@keyframes otp-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.anim-otp-reveal {
+  animation: otp-reveal 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
